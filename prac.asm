@@ -4,8 +4,9 @@
 ;; PILA
 .DATA
 ;; VARIABLES
-nueva_linea  db      0a,"$"
-contador_global dw  0
+nueva_linea         db  0a,"$"
+contador_global     dw  0
+str_elegir_opcion   db  "Elija una opcion:",0a,"$"
     ;; ENCABEZADO
 usac        db      "Universidad de San Carlos de Guatemala",0a,"$" ;; 0a -> nueva linea
 facultad    db      "Facultad de Ingenieria",0a,"$"
@@ -17,6 +18,7 @@ carnet      db      "Carnet: 201404278",0a,"$"
 archivo_acceso          db  "PRA2.CNF",00 ;; 00 -> caracter nulo, lo pide el archivo (cadena ASCIZ)
 str_error_acceso_arch   db  "Archivo no encontrado",0a,"$"
 str_error_acceso_cont   db  "Error estructura o credenciales",0a,"$"
+str_cred_correctas      db  "Credenciales correctas, enter para continuar",0a,"$"
 handle_acceso           dw  0000 ;; para guardar puntero archivo abierto
 buffer_acceso_leido     db  43  dup (0),"$" ; 57d $ -> indica cuando voy a parar
 str_credenciales        db  "credenciales"
@@ -28,6 +30,36 @@ cont_actual_caracer     dw 0 ; indice para saber desde donde voy a ler del buffe
 comillas            db '"'
 corchete_abre       db '['
 corchete_cierre     db ']'
+    ;; MENU PRINCIPAL
+str_menu_princ          db  "---Menu Principal---",0a,"$"
+str_menu_princ_prod     db  "(P)roductos",0a,"$"
+str_menu_princ_vent     db  "(V)entas",0a,"$"
+str_menu_princ_repo     db  "(R)eportes",0a,"$"
+    ;; MENU PRODUCTOS
+str_menu_prod          db  "---Menu Productos---",0a,"$"
+str_menu_prod_ingre    db  "(I)ngresar producto",0a,"$"
+str_menu_prod_borra    db  "(B)orrar producto",0a,"$"
+str_menu_prod_mostr    db  "(M)ostrar productos",0a,"$"
+str_nombre_arch_prod   db   "PROD.BIN",00
+handle_productos       dw   0000
+    ;; ESTRUCTURA PRODUCTOS
+estruct_prod_codigo    db 05 dup(0)
+estruct_prod_descrip   db 21 dup(0) ; 33d
+estruct_prod_precio    dw 0000
+estruct_prod_unidads   dw 0000
+
+;; primer byte, longitud maxima de entrada, segundo byte, el segundo byte contiene la longitud real de la línea anterior, 
+;; al devolver el segundo byte contienen la longitud real, el tercer byte y los subsiguientes contienen la línea de entrada
+; buffer_producto     db 21, 00, 21 dup (0) ; 33d -> otra forma de declarar
+buffer_producto     db 21, 00 
+                    db 21 dup (0) ; 33d
+str_titulo_prod     db    "-PRODUCTOS-",0a,"$"
+str_pedir_codigo    db    "Codigo: ","$"
+str_pedir_nombre    db    "Nombre: ","$"
+str_pedir_precio    db    "Precio: ","$"
+str_pedir_unidad    db    "Unidades: ","$"
+
+
 
 .CODE
 .STARTUP
@@ -116,7 +148,18 @@ acceso proc
     mov ah, 3e
     int 21
 
-    jmp fin    
+    call print_nueva_linea
+
+    mov dx, offset str_cred_correctas
+    mov ah, 09
+    int 21
+
+    es_enter:
+        mov ah, 08
+        int 21
+        cmp al, 0d ; enter 
+        je menu_principal
+        jmp es_enter    
 acceso endp
 
 limpiar_buffer_leido_actual proc
@@ -167,27 +210,6 @@ extraer_contenido_entre_caracteres proc
 
 extraer_contenido_entre_caracteres endp
 
-imprimir_estructura proc
-    mov DI, offset buffer_acceso_leido
-    ciclo_buscar_posicion_null:
-            mov AL, [DI]
-            cmp AL, 00
-            je poner_dolar_al_final
-            inc DI
-            jmp ciclo_buscar_posicion_null
-    poner_dolar_al_final:
-            mov AL, 24  ;; agregar dolar al final
-            mov [DI], AL
-            ;; imprimir normal
-            mov DX, offset buffer_acceso_leido
-            mov AH, 09
-            int 21
-            mov DX, offset nueva_linea
-            mov AH, 09
-            int 21
-            ret    
-    imprimir_estructura endp
-
 eti_error_archivo_acceso:
     mov dx, offset str_error_acceso_arch
     mov ah, 09
@@ -228,6 +250,187 @@ encabezado proc
     ret    
 encabezado endp
 
+;; ---------------------------------------------------------- MENU PRINCIPAL ------------------------------------------------------------------
+menu_principal:
+
+    call print_nueva_linea
+
+        ;; Mostrar Menú
+    mov dx, offset str_menu_princ
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_princ_prod
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_princ_vent
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_princ_repo
+    mov ah, 09
+    int 21
+    mov dx, offset str_elegir_opcion
+    mov ah, 09
+    int 21
+
+        ;; Leer entrada, 1 caracter
+    mov ah, 08
+    int 21
+        ;; AL = esta el caracter leido
+    cmp al, 70 ; p minúscula
+    je menu_productos
+    cmp al, 76 ; v minúscula
+    je fin 
+    cmp al, 72 ; r minúscula
+    je fin 
+    jmp menu_principal
+
+menu_productos:
+    call print_nueva_linea
+
+        ;; Mostrar Menú
+    mov dx, offset str_menu_prod
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_prod_ingre
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_prod_borra
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_prod_mostr
+    mov ah, 09
+    int 21
+    mov dx, offset str_elegir_opcion
+    mov ah, 09
+    int 21
+
+        ;; Leer entrada, 1 caracter
+    mov ah, 08
+    int 21
+        ;; AL = esta el caracter leido
+    cmp al, 69 ; i minúscula
+    je ingresar_producto
+    cmp al, 62 ; b minúscula
+    je fin 
+    cmp al, 6d ; m minúscula
+    je fin 
+    jmp menu_productos
+
+ingresar_producto:
+    call print_nueva_linea
+    mov dx, offset str_titulo_prod
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+pedir_codigo_prod:
+    mov dx, offset str_pedir_codigo
+    mov ah, 09
+    int 21
+
+    call print_nueva_linea
+
+    mov dx, offset buffer_producto ;; int -> buffered keyboard input
+    mov ah, 0a
+    int 21
+
+    call print_nueva_linea
+        ;; verificar que el codigo no este vacio
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 00
+    je pedir_codigo_prod
+
+        ;; verificar caraceres
+    mov di, offset buffer_producto
+    inc di
+    mov ch, 00
+    mov cl, [di] ; tamano leido
+    inc di ; contenido de bufer
+    call validar_codigo_prod
+    cmp dl, 0ff
+    jne pedir_codigo_prod
+    
+    ;; verificar tamanio menor a 4
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 04
+    ja pedir_codigo_prod ;; si es mayor que 4
+    
+    call copiar_codigo_producto
+
+    call print_nueva_linea
+    call imprimir_estructura
+    jmp fin
+    
+
+
+validar_codigo_prod proc
+    ;; ENTRADA
+        ;; DI -> direccion de cadena, este caso buffer lecturas
+        ;; CX -> tamanio
+    ;; SALIDA
+        ;; DL -> 00 no valido
+        ;;    -> 0ff si es validio  
+
+    ;;  numeros estan de 0-9 -> 30-39; letras estan de A-Z -> 41-5A
+    verificar_si_es_letra:
+        mov al, [di]
+            ; validar que sea fin de cadena
+        cmp al, 'A'
+        jb varificar_si_es_numero ; si es menor, puede que sea numero
+        cmp al, 'Z'
+        ja caracter_invalido ; si es mayor, ya no puede ser numero
+        inc di ; si llega aqui, estan entre [A-Z]
+        loop verificar_si_es_letra
+        jmp fin_validar
+    
+    varificar_si_es_numero:
+        cmp al, '0'
+        jb caracter_invalido ; si es menor
+        cmp al, '9'
+        ja caracter_invalido ; si es mayor, ya no puede ser letra
+        inc di ; si llega aqui, esta entre [0-9]
+        loop verificar_si_es_letra
+        jmp fin_validar
+    
+    caracter_invalido:
+        mov dl, 00 ;; entrada invalida
+        ret
+
+    fin_validar:
+        mov dl, 0ff ; son iguales
+        ret
+    
+validar_codigo_prod endp
+
+copiar_codigo_producto proc
+    codigo_aceptado:
+        mov si, offset estruct_prod_codigo
+        mov di, offset buffer_producto
+        inc di
+        mov ch, 00
+        mov cl, [di]
+        inc di ;; posicion del contenido del buffer
+
+    copiar_codigo_aceptado:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_codigo_aceptado
+        call print_nueva_linea
+        ret
+copiar_codigo_producto endp
+
+print_nueva_linea proc
+    mov dx, offset nueva_linea
+    mov ah, 09
+    int 21
+    ret
+print_nueva_linea endp
+
 comparar_cadenas proc
     ;; ENTRADA
         ;; SI -> direccion de cadena 1
@@ -250,6 +453,27 @@ comparar_cadenas proc
         mov dl, 00 ;; no son iguales
         ret
 comparar_cadenas endp
+
+imprimir_estructura proc
+    mov DI, offset estruct_prod_codigo ; <-- cambiar aqui
+    ciclo_buscar_posicion_null:
+            mov AL, [DI]
+            cmp AL, 00 ; para cuando encuenra 0
+            je poner_dolar_al_final
+            inc DI
+            jmp ciclo_buscar_posicion_null
+    poner_dolar_al_final:
+            mov AL, 24  ;; agregar dolar al final
+            mov [DI], AL
+            ;; imprimir normal
+            mov DX, offset estruct_prod_codigo ; <-- cambiar aqui
+            mov AH, 09
+            int 21
+            mov DX, offset nueva_linea
+            mov AH, 09
+            int 21
+            ret    
+imprimir_estructura endp
 
 fin:
 .EXIT
