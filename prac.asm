@@ -800,8 +800,7 @@ pedir_unidades_producto:
     mov cx, 0005
     call memset
 
-    ; jmp guardar_producto
-    jmp fin
+    jmp existencia_archivo_producto ; empezar a guardar producto
 
 copiar_unidades_producto proc
     unidad_aceptada:
@@ -852,6 +851,61 @@ validar_campo_numerico proc
         ret
     
 validar_campo_numerico endp
+
+existencia_archivo_producto:
+        ;; abrimos archivo
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_prod
+    int 21
+
+    jc crear_archivo_producto ; no existe, entonces lo creamos
+    jmp guardar_producto_en_archivo
+
+crear_archivo_producto:
+    mov cx, 0000
+    mov dx, offset str_nombre_arch_prod
+    mov ah, 3c
+    int 21
+    jmp guardar_producto_en_archivo
+
+guardar_producto_en_archivo:
+        ;; hasta aqui, archivo ya abierto
+    mov [handle_productos], ax
+
+        ;; vamos al final del archivo
+    mov bx, [handle_productos]
+    mov cx, 00
+    mov dx, 00
+    mov al, 02
+    mov ah, 42
+    int 21
+
+        ;; escribimos en el archivo
+    mov cx, 0004
+    mov dx, offset estruct_prod_codigo
+    mov ah, 40
+    int 21
+
+    mov cx, 20 ;; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset num_precio_prod
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset num_unidades_prod
+    mov ah, 40
+    int 21
+
+        ;; cerrar archivo
+    mov ah, 3e
+    int 21
+    jmp menu_productos    
 
 convertir_cadena_a_numero proc
 
