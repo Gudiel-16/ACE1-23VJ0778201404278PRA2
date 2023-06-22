@@ -48,11 +48,14 @@ handle_productos       dw   0000
     ;; ESTRUCTURA PRODUCTOS
 estruct_prod_codigo    db 05 dup(0)
 estruct_prod_descrip   db 21 dup(0) ; 33d
-estruct_prod_precio    dw 0000
-estruct_prod_unidads   dw 0000
+estruct_prod_precio    db 05 dup (0)
+estruct_prod_unidads   db 05 dup (0)
+num_precio_prod        dw  0000
+num_unidades_prod      dw  0000
 
-;; primer byte, longitud maxima de entrada, segundo byte, el segundo byte contiene la longitud real de la línea anterior, 
-;; al devolver el segundo byte contienen la longitud real, el tercer byte y los subsiguientes contienen la línea de entrada
+;; primer byte, longitud maxima de entrada 
+;; segundo byte contienen la longitud real
+;; tercer byte y los subsiguientes contienen la entrada
 ; buffer_producto     db 21, 00, 21 dup (0) ; 33d -> otra forma de declarar
 buffer_producto     db 21, 00 
                     db 21 dup (0) ; 33d
@@ -61,6 +64,7 @@ str_pedir_codigo    db    "Codigo: ","$"
 str_pedir_nombre    db    "Nombre: ","$"
 str_pedir_precio    db    "Precio: ","$"
 str_pedir_unidad    db    "Unidades: ","$"
+
 
 
 
@@ -433,7 +437,13 @@ ingresar_producto:
     mov ah, 09
     int 21
     call print_nueva_linea
+
 pedir_codigo_prod:
+
+    ; mov di, offset buffer_producto
+    ; mov cx, 0005 ;
+    ; call memset
+
     mov dx, offset str_pedir_codigo
     mov ah, 09
     int 21
@@ -471,12 +481,12 @@ pedir_codigo_prod:
     
     call copiar_codigo_producto
 
-    call print_nueva_linea
-    call imprimir_estructura
-    jmp fin
+    jmp pedir_nombre_producto
+
+    ; call print_nueva_linea
+    ; call imprimir_estructura
+    ; jmp fin
     
-
-
 validar_codigo_prod proc
     ;; ENTRADA
         ;; DI -> direccion de cadena, este caso buffer lecturas
@@ -535,6 +545,369 @@ copiar_codigo_producto proc
         ret
 copiar_codigo_producto endp
 
+pedir_nombre_producto:
+
+    ; mov di, offset buffer_producto
+    ; mov cx, 21 ; 33d
+    ; call memset
+
+    call print_nueva_linea
+    mov dx, offset str_pedir_nombre
+    mov ah, 09
+    int 21
+
+    call print_nueva_linea
+
+    mov dx, offset buffer_producto ;; int -> buffered keyboard input
+    mov ah, 0a
+    int 21
+
+    call print_nueva_linea
+        ;; verificar que el nombre no este vacio
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 00
+    je pedir_nombre_producto
+
+        ;; verificar caraceres
+    mov di, offset buffer_producto
+    inc di
+    mov ch, 00
+    mov cl, [di] ; tamano leido
+    inc di ; contenido de bufer
+    call validar_nombre_prod
+    cmp dl, 0ff
+    jne pedir_nombre_producto
+    
+    ;; verificar tamanio menor a 33
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 20 ; 32d
+    ja pedir_nombre_producto ;; si es mayor que 32
+    
+    call copiar_nombre_producto
+
+    ; call imprimir_estructura
+
+    jmp pedir_precio_producto
+
+validar_nombre_prod proc
+    ;; ENTRADA
+        ;; DI -> direccion de cadena, este caso buffer lecturas
+        ;; CX -> tamanio
+    ;; SALIDA
+        ;; DL -> 00 no valido
+        ;;    -> 0ff si es validio  
+
+    ;;  numeros estan de ! -> 21 // , -> 2c // . -> 2e // 0-9 -> 30-39 // A-Z -> 41-5A // a-z -> 61-7a
+
+    verificar_si_es_signo:
+        mov al, [di]
+        cmp al, '!'
+        je es_signo_admitible
+        cmp al, ','
+        je es_signo_admitible
+        cmp al, '.'
+        je es_signo_admitible
+        jmp verificar_si_es_letra_min ; no es simbolo admitible
+
+    es_signo_admitible:
+        inc di
+        loop verificar_si_es_signo
+
+    verificar_si_es_letra_min:
+        ; mov al, [di]
+            ; validar que sea fin de cadena
+        cmp al, 'a'
+        jb verificar_si_es_letra_may ; si es menor, puede que sea letra mayuscula
+        cmp al, 'z'
+        ja caracter_invalido_pn ; si es mayor, ya no puede ser ninguno de los posibles
+        inc di ; si llega aqui, estan entre [a-z]
+        loop verificar_si_es_signo
+        jmp fin_validar_pn
+
+    verificar_si_es_letra_may:
+        ; mov al, [di]
+            ; validar que sea fin de cadena
+        cmp al, 'A'
+        jb varificar_si_es_numero_pn ; si es menor, puede que sea numero
+        cmp al, 'Z'
+        ja caracter_invalido_pn ; si es mayor, ya no puede ser numero
+        inc di ; si llega aqui, estan entre [A-Z]
+        loop verificar_si_es_signo
+        jmp fin_validar_pn
+    
+    varificar_si_es_numero_pn:
+        cmp al, '0'
+        jb caracter_invalido_pn ; si es menor
+        cmp al, '9'
+        ja caracter_invalido_pn ; si es mayor, ya no puede ser letra
+        inc di ; si llega aqui, esta entre [0-9]
+        loop verificar_si_es_signo
+        jmp fin_validar_pn
+    
+    caracter_invalido_pn:
+        mov dl, 00 ;; entrada invalida
+        ret
+
+    fin_validar_pn:
+        mov dl, 0ff ; son iguales
+        ret
+    
+validar_nombre_prod endp
+
+copiar_nombre_producto proc
+    nombre_aceptado:
+        mov si, offset estruct_prod_descrip
+        mov di, offset buffer_producto
+        inc di
+        mov ch, 00
+        mov cl, [di]
+        inc di ;; posicion del contenido del buffer
+
+    copiar_nombre_aceptado:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_nombre_aceptado
+        call print_nueva_linea
+        ret
+copiar_nombre_producto endp
+
+pedir_precio_producto:
+
+    call print_nueva_linea
+    mov dx, offset str_pedir_precio
+    mov ah, 09
+    int 21
+
+    call print_nueva_linea
+
+    mov dx, offset buffer_producto ;; int -> buffered keyboard input
+    mov ah, 0a
+    int 21
+
+    call print_nueva_linea
+
+        ;; verificar que no este vacio
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 00
+    je pedir_precio_producto
+
+        ;; verificar caraceres
+    mov di, offset buffer_producto
+    inc di
+    mov ch, 00
+    mov cl, [di] ; tamano leido
+    inc di ; contenido de bufer
+    call validar_campo_numerico
+    cmp dl, 0ff
+    jne pedir_precio_producto
+    
+    ;; verificar tamanio menor a 6
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 05 ; 6d
+    ja pedir_precio_producto ;; si es mayor que 5
+    
+    call copiar_precio_producto
+
+        ;; convertimos
+    mov di, offset estruct_prod_precio
+    call convertir_cadena_a_numero
+    mov [num_precio_prod], ax
+
+        ;; limpiamos
+    mov di, offset estruct_prod_precio
+    mov cx, 0005
+    call memset
+
+    jmp pedir_unidades_producto
+
+copiar_precio_producto proc
+    precio_aceptado:
+        mov si, offset estruct_prod_precio
+        mov di, offset buffer_producto
+        inc di
+        mov ch, 00
+        mov cl, [di]
+        inc di ;; posicion del contenido del buffer
+
+    copiar_precio_aceptado:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_precio_aceptado
+        call print_nueva_linea
+        ret
+copiar_precio_producto endp
+
+pedir_unidades_producto:
+
+    call print_nueva_linea
+    mov dx, offset str_pedir_unidad
+    mov ah, 09
+    int 21
+
+    call print_nueva_linea
+
+    mov dx, offset buffer_producto ;; int -> buffered keyboard input
+    mov ah, 0a
+    int 21
+
+    call print_nueva_linea
+
+        ;; verificar que no este vacio
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 00
+    je pedir_unidades_producto
+
+        ;; verificar caraceres
+    mov di, offset buffer_producto
+    inc di
+    mov ch, 00
+    mov cl, [di] ; tamano leido
+    inc di ; contenido de bufer
+    call validar_campo_numerico
+    cmp dl, 0ff
+    jne pedir_unidades_producto
+    
+    ;; verificar tamanio menor a 6
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 05 ; 6d
+    ja pedir_unidades_producto ;; si es mayor que 5
+    
+    call copiar_unidades_producto
+
+        ;; convertimos
+    mov di, offset estruct_prod_unidads
+    call convertir_cadena_a_numero
+    mov [num_unidades_prod], ax
+
+        ;; limpiamos
+    mov di, offset estruct_prod_unidads
+    mov cx, 0005
+    call memset
+
+    ; jmp guardar_producto
+    jmp fin
+
+copiar_unidades_producto proc
+    unidad_aceptada:
+        mov si, offset estruct_prod_unidads
+        mov di, offset buffer_producto
+        inc di
+        mov ch, 00
+        mov cl, [di]
+        inc di ;; posicion del contenido del buffer
+
+    copiar_unidad_aceptada:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_unidad_aceptada
+        call print_nueva_linea
+        ret
+copiar_unidades_producto endp
+
+
+validar_campo_numerico proc
+    ;; ENTRADA
+        ;; DI -> direccion de cadena, este caso buffer lecturas
+        ;; CX -> tamanio
+    ;; SALIDA
+        ;; DL -> 00 no valido
+        ;;    -> 0ff si es validio  
+
+    ;;  numeros estan 0-9 -> 30-39
+
+    varificar_si_es_numero_ppc:
+        mov al, [di]
+        cmp al, '0'
+        jb caracter_invalido_ppc ; si es menor
+        cmp al, '9'
+        ja caracter_invalido_ppc ; si es mayor
+        inc di ; si llega aqui, esta entre [0-9]
+        loop varificar_si_es_numero_ppc
+        jmp fin_validar_ppc
+    
+    caracter_invalido_ppc:
+        mov dl, 00 ;; entrada invalida
+        ret
+
+    fin_validar_ppc:
+        mov dl, 0ff ; son iguales
+        ret
+    
+validar_campo_numerico endp
+
+convertir_cadena_a_numero proc
+
+    ;; ENTRADA
+        ;; DI -> direccion de cadena numeroca
+    ;; SALIDA
+        ;; AX -> numero convertido
+
+    mov ax, 0000 ; inicializar salida
+    mov cx, 0000 ; inicializar contador
+
+    seguir_convirtiendo_can:
+        mov bl, [di]
+        cmp bl, 00
+        je retorno_can
+        sub bl, 30      ; bl es el valor numerico del caracter; 30 -> 48d, que es el 0 en ascii
+        mov dx, 000a    ; 10d    
+        mul dx          ; ax * dx -> dx:ax ;
+        mov bh, 00
+        add ax, bx
+        inc di
+        loop seguir_convirtiendo_can
+        jmp retorno_can
+    
+    retorno_can:
+        ret
+
+    ;; EJEMPLO FLUJO, para un valor de 123
+    ;;[31][32][33][00][00]
+    ;;     ^
+    ;;     |
+    ;;     ----- DI
+    ;;;;
+    ;;AX = 0
+    ;;10 * AX + 1  = 1
+    ;;;;
+    ;;AX = 1
+    ;;10 * AX + 2  = 12
+    ;;;;
+    ;;AX = 12
+    ;;10 * AX + 3  = 123
+    ;;;;
+convertir_cadena_a_numero endp
+
+memset proc
+    ;; ENTRADA
+    ;;  DI -> direccion de cadena
+    ;;  CX -> tamano de cadena
+    ciclo_mbf:
+        mov al, 00
+        mov [di], al
+        inc di
+        loop ciclo_mbf
+        ret
+memset endp
+
 print_nueva_linea proc
     mov dx, offset nueva_linea
     mov ah, 09
@@ -566,7 +939,7 @@ comparar_cadenas proc
 comparar_cadenas endp
 
 imprimir_estructura proc
-    mov DI, offset estruct_prod_codigo ; <-- cambiar aqui
+    mov DI, offset estruct_prod_descrip ; <-- cambiar aqui
     ciclo_buscar_posicion_null:
             mov AL, [DI]
             cmp AL, 00 ; para cuando encuenra 0
@@ -577,7 +950,7 @@ imprimir_estructura proc
             mov AL, 24  ;; agregar dolar al final
             mov [DI], AL
             ;; imprimir normal
-            mov DX, offset estruct_prod_codigo ; <-- cambiar aqui
+            mov DX, offset estruct_prod_descrip ; <-- cambiar aqui
             mov AH, 09
             int 21
             mov DX, offset nueva_linea
