@@ -33,6 +33,7 @@ comillas            db '"'
 corchete_abre       db '['
 corchete_cierre     db ']'
 igual_simbolo       db  '='
+separador_print_consol  db  "====================",0a,"$"
     ;; MENU PRINCIPAL
 str_menu_princ          db  "---Menu Principal---",0a,"$"
 str_menu_princ_prod     db  "(P)roductos",0a,"$"
@@ -428,7 +429,7 @@ menu_productos:
     cmp al, 62 ; b minúscula
     je fin 
     cmp al, 6d ; m minúscula
-    je fin 
+    je mostrar_productos 
     jmp menu_productos
 
 ingresar_producto:
@@ -440,9 +441,9 @@ ingresar_producto:
 
 pedir_codigo_prod:
 
-    ; mov di, offset buffer_producto
-    ; mov cx, 0005 ;
-    ; call memset
+    mov di, offset estruct_prod_codigo
+    mov cx, 0004 ;
+    call memset
 
     mov dx, offset str_pedir_codigo
     mov ah, 09
@@ -547,9 +548,9 @@ copiar_codigo_producto endp
 
 pedir_nombre_producto:
 
-    ; mov di, offset buffer_producto
-    ; mov cx, 21 ; 33d
-    ; call memset
+    mov di, offset estruct_prod_descrip
+    mov cx, 0021 ;
+    call memset
 
     call print_nueva_linea
     mov dx, offset str_pedir_nombre
@@ -950,6 +951,117 @@ convertir_cadena_a_numero proc
     ;;;;
 convertir_cadena_a_numero endp
 
+mostrar_productos:
+    call print_nueva_linea
+
+        ;; abrir archivo
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_prod
+    int 21
+    jc menu_productos ; validar por si el archivo no existe
+    mov [handle_productos], ax
+    jmp ciclo_mostrar_pconsola
+
+ciclo_mostrar_pconsola:
+        ; leer archivo
+    ; mov bx, [handle_productos]
+    ; mov cx, 0024 ; 36d bytes, suma entre cod producto y descripcion
+    ; mov dx, offset estruct_prod_codigo
+    ; mov ah, 3f
+    ; int 21
+    
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0020 ; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_precio_prod
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je fin_mostrar_productos
+
+        ;; valido por si en ese espacio hay producto eliminado
+    mov al, 00
+    cmp [estruct_prod_codigo], al
+    je ciclo_mostrar_pconsola
+
+        ;; separador entre cada producto
+    mov dx, offset separador_print_consol
+    mov AH, 09
+    int 21
+    call mostrar_codigo_producto_consola
+    call mostrar_descripcion_producto_consola
+
+    jmp ciclo_mostrar_pconsola
+
+fin_mostrar_productos:
+        ;; pintar separador al final
+    mov dx, offset separador_print_consol
+    mov AH, 09
+    int 21
+    jmp menu_productos
+
+mostrar_codigo_producto_consola proc
+    mov DI, offset estruct_prod_codigo ; <-- cambiar aqui
+    ciclo_buscar_posicion_null:
+            mov AL, [DI]
+            cmp AL, 00 ; para cuando encuenra 0
+            je poner_dolar_al_final
+            inc DI
+            jmp ciclo_buscar_posicion_null
+    poner_dolar_al_final:
+            mov AL, 24  ;; agregar dolar al final
+            mov [DI], AL
+            ;; imprimir normal
+            mov DX, offset estruct_prod_codigo ; <-- cambiar aqui
+            mov AH, 09
+            int 21
+            call print_nueva_linea
+            ret    
+mostrar_codigo_producto_consola endp
+
+mostrar_descripcion_producto_consola proc
+    mov DI, offset estruct_prod_descrip ; <-- cambiar aqui
+    ciclo_buscar_posicion_null:
+            mov AL, [DI]
+            cmp AL, 00 ; para cuando encuenra 0
+            je poner_dolar_al_final
+            inc DI
+            jmp ciclo_buscar_posicion_null
+    poner_dolar_al_final:
+            mov AL, 24  ;; agregar dolar al final
+            mov [DI], AL
+            ;; imprimir normal
+            mov DX, offset estruct_prod_descrip ; <-- cambiar aqui
+            mov AH, 09
+            int 21
+            call print_nueva_linea
+            ret    
+mostrar_descripcion_producto_consola endp
+
 memset proc
     ;; ENTRADA
     ;;  DI -> direccion de cadena
@@ -993,7 +1105,7 @@ comparar_cadenas proc
 comparar_cadenas endp
 
 imprimir_estructura proc
-    mov DI, offset estruct_prod_descrip ; <-- cambiar aqui
+    mov DI, offset estruct_prod_codigo ; <-- cambiar aqui
     ciclo_buscar_posicion_null:
             mov AL, [DI]
             cmp AL, 00 ; para cuando encuenra 0
@@ -1004,7 +1116,7 @@ imprimir_estructura proc
             mov AL, 24  ;; agregar dolar al final
             mov [DI], AL
             ;; imprimir normal
-            mov DX, offset estruct_prod_descrip ; <-- cambiar aqui
+            mov DX, offset estruct_prod_codigo ; <-- cambiar aqui
             mov AH, 09
             int 21
             mov DX, offset nueva_linea
