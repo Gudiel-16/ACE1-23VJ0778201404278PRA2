@@ -20,16 +20,19 @@ str_error_acceso_arch   db  "Archivo no encontrado",0a,"$"
 str_error_acceso_cont   db  "Error estructura o credenciales",0a,"$"
 str_cred_correctas      db  "Credenciales correctas, enter para continuar",0a,"$"
 handle_acceso           dw  0000 ;; para guardar puntero archivo abierto
-buffer_acceso_leido     db  43  dup (0),"$" ; 57d $ -> indica cuando voy a parar
+buffer_acceso_leido     db  99  dup (0),"$" ; 153d $ -> indica cuando voy a parar
 str_credenciales        db  "credenciales"
+str_usuario_lit         db  "usuario="
+str_clave_lit           db  "clave="
 str_nombre_acceso       db  "cgudiel"
 str_clave_acceso        db  "201404278"
-buffer_leido_actual     db  43   dup (0) ; 57d, buffer donde estara el nombre y password extraidos del archivo
+buffer_leido_actual     db  99   dup (0) ; 153d, buffer donde estara el nombre y password extraidos del archivo
 contador_buffer_bia     dw  0 ; para limpiar el buffer_leido_actual
 cont_actual_caracer     dw 0 ; indice para saber desde donde voy a ler del buffer_acceso_leido
 comillas            db '"'
 corchete_abre       db '['
 corchete_cierre     db ']'
+igual_simbolo       db  '='
     ;; MENU PRINCIPAL
 str_menu_princ          db  "---Menu Principal---",0a,"$"
 str_menu_princ_prod     db  "(P)roductos",0a,"$"
@@ -83,7 +86,7 @@ acceso proc
 
         ;; lectura de archivo
     mov bx, [handle_acceso]
-    mov cx, 38 ; 56d bytes
+    mov cx, 99 ; 153d bytes
     mov dx, offset buffer_acceso_leido
     mov ah, 3f
     int 21
@@ -103,63 +106,161 @@ acceso proc
     cmp dl, 0ff
     jne eti_error_cred_acceso
         ;; imprimir literal 'credenciales'
-    ; mov dx, offset buffer_leido_actual
-    ; mov ah, 09
-    ; int 21
+    mov dx, offset buffer_leido_actual
+    mov ah, 09
+    int 21
+    call print_nueva_linea
 
-        ;; extraemos nombre
-    inc cont_actual_caracer
+        ;; extraemos palabra ya sea 'usuario=' o 'clave='
     call limpiar_buffer_leido_actual
-    mov di, offset comillas
+    mov di, offset corchete_cierre
     mov si, offset comillas
     call extraer_contenido_entre_caracteres
-        ;; comparamos nombre
+        ;; imprimimos que encontro
+    ; mov dx, offset buffer_leido_actual
+    ; mov ah, 09
+    ; int 21    
+    ; call print_nueva_linea
+
+        ;; comparamos si es campo 'usuario='
     mov si, offset buffer_leido_actual
-    mov di, offset str_nombre_acceso
+    mov di, offset str_usuario_lit
     mov cx, 0007 ;; cantidad de caracteres a comparar
     call comparar_cadenas
     cmp dl, 0ff
-    jne eti_error_cred_acceso
-        ;; imprimir nombre
-    ; mov dx, offset buffer_leido_actual
-    ; mov ah, 09
-    ; int 21
+    je es_campo_usuario
 
-        ;; extraemos clave
-    inc cont_actual_caracer
-    call limpiar_buffer_leido_actual
-    mov di, offset comillas
-    mov si, offset comillas
-    call extraer_contenido_entre_caracteres
-        ;; comparamos clave
+        ;; comparamos si es campo 'clave='
     mov si, offset buffer_leido_actual
-    mov di, offset str_clave_acceso
-    mov cx, 0009
+    mov di, offset str_clave_lit
+    mov cx, 0005 ;; cantidad de caracteres a comparar
     call comparar_cadenas
     cmp dl, 0ff
-    jne eti_error_cred_acceso
-        ;; imprimir clave
-    ; mov dx, offset buffer_leido_actual
-    ; mov ah, 09
-    ; int 21
+    je es_campo_clave
 
-        ;; cerrar archivo, bx esta el handle_acceso
-    mov bx, [handle_acceso]
-    mov ah, 3e
-    int 21
+    jmp eti_error_cred_acceso ; ni usuario ni clave
 
-    call print_nueva_linea
+    es_campo_usuario:
+            ;; extraemos nombre
+        ; inc cont_actual_caracer
+        call limpiar_buffer_leido_actual
+        mov di, offset comillas
+        mov si, offset comillas
+        call extraer_contenido_entre_caracteres
+            ;; comparamos nombre
+        mov si, offset buffer_leido_actual
+        mov di, offset str_nombre_acceso
+        mov cx, 0007 ;; cantidad de caracteres a comparar
+        call comparar_cadenas
+        cmp dl, 0ff
+        jne eti_error_cred_acceso
+            ;; imprimir nombre
+        ; mov dx, offset buffer_leido_actual
+        ; mov ah, 09
+        ; int 21
+        ; call print_nueva_linea
 
-    mov dx, offset str_cred_correctas
-    mov ah, 09
-    int 21
+            ;; extraemos 'clave='
+        call limpiar_buffer_leido_actual
+        mov di, offset comillas
+        mov si, offset comillas
+        call extraer_contenido_entre_caracteres
+            ;; imprimimos que encontro
+        ; mov dx, offset buffer_leido_actual
+        ; mov ah, 09
+        ; int 21
+        ; call print_nueva_linea
 
-    es_enter:
-        mov ah, 08
+        ;; extraemos clave
+        ; inc cont_actual_caracer
+        call limpiar_buffer_leido_actual
+        mov di, offset comillas
+        mov si, offset comillas
+        call extraer_contenido_entre_caracteres
+            ;; comparamos clave
+        mov si, offset buffer_leido_actual
+        mov di, offset str_clave_acceso
+        mov cx, 0009
+        call comparar_cadenas
+        cmp dl, 0ff
+        jne eti_error_cred_acceso
+            ;; imprimir clave
+        ; mov dx, offset buffer_leido_actual
+        ; mov ah, 09
+        ; int 21
+        ; call print_nueva_linea
+        jmp ingresar_a_sistema
+         
+    es_campo_clave:
+           ;; extraemos clave
+        ; inc cont_actual_caracer
+        call limpiar_buffer_leido_actual
+        mov di, offset comillas
+        mov si, offset comillas
+        call extraer_contenido_entre_caracteres
+            ;; comparamos clave
+        mov si, offset buffer_leido_actual
+        mov di, offset str_clave_acceso
+        mov cx, 0009
+        call comparar_cadenas
+        cmp dl, 0ff
+        jne eti_error_cred_acceso
+            ;; imprimir clave
+        ; mov dx, offset buffer_leido_actual
+        ; mov ah, 09
+        ; int 21
+        ; call print_nueva_linea
+
+        ;; extraemos 'nombre='
+        call limpiar_buffer_leido_actual
+        mov di, offset comillas
+        mov si, offset comillas
+        call extraer_contenido_entre_caracteres
+            ;; imprimimos que encontro
+        ; mov dx, offset buffer_leido_actual
+        ; mov ah, 09
+        ; int 21
+        ; call print_nueva_linea
+
+        ;; extraemos nombre
+        ; inc cont_actual_caracer
+        call limpiar_buffer_leido_actual
+        mov di, offset comillas
+        mov si, offset comillas
+        call extraer_contenido_entre_caracteres
+            ;; comparamos nombre
+        mov si, offset buffer_leido_actual
+        mov di, offset str_nombre_acceso
+        mov cx, 0007 ;; cantidad de caracteres a comparar
+        call comparar_cadenas
+        cmp dl, 0ff
+        jne eti_error_cred_acceso
+            ;; imprimir nombre
+        ; mov dx, offset buffer_leido_actual
+        ; mov ah, 09
+        ; int 21
+        ; call print_nueva_linea
+        jmp ingresar_a_sistema
+
+    ingresar_a_sistema: 
+
+            ;; cerrar archivo, bx esta el handle_acceso
+        mov bx, [handle_acceso]
+        mov ah, 3e
         int 21
-        cmp al, 0d ; enter 
-        je menu_principal
-        jmp es_enter    
+
+        call print_nueva_linea
+
+        mov dx, offset str_cred_correctas
+        mov ah, 09
+        int 21
+
+        es_enter:
+            mov ah, 08
+            int 21
+            cmp al, 0d ; enter 
+            je menu_principal
+            jmp es_enter    
 acceso endp
 
 limpiar_buffer_leido_actual proc
@@ -191,11 +292,21 @@ extraer_contenido_entre_caracteres proc
         mov al, buffer_acceso_leido[bx]
         cmp al, [si] ;; caracter donde termina la extraccion
         je fin_extraccion ;; si es caracter donde termina extraccion, fin extraccion
+        cmp al, 20 ;; espacio (ignoramos)
+        je ignorar_caracteres
+        cmp al, 0a ;; nueva linea (ignoramos)
+        je ignorar_caracteres
+        cmp al, 0d ;; retorno de carro (ignoramos)
+        je ignorar_caracteres
         mov bx, contador_buffer_bia
         mov buffer_leido_actual[bx], al ;; guardamos caracter
         inc contador_buffer_bia
         inc cont_actual_caracer
         jmp guardar_caracter_extraido ;; avanza al siguiente caracter
+
+    ignorar_caracteres:
+        inc cont_actual_caracer
+        jmp guardar_caracter_extraido
 
     siguiente_caracter:
         inc cont_actual_caracer
