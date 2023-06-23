@@ -40,12 +40,18 @@ str_menu_princ_prod     db  "(P)roductos",0a,"$"
 str_menu_princ_vent     db  "(V)entas",0a,"$"
 str_menu_princ_repo     db  "(R)eportes",0a,"$"
     ;; MENU PRODUCTOS
-str_menu_prod          db  "---Menu Productos---",0a,"$"
+str_menu_prod          db  "---MENU PRODUCTOS---",0a,"$"
 str_menu_prod_ingre    db  "(I)ngresar producto",0a,"$"
 str_menu_prod_borra    db  "(B)orrar producto",0a,"$"
 str_menu_prod_mostr    db  "(M)ostrar productos",0a,"$"
 str_nombre_arch_prod   db   "PROD.BIN",00
 handle_productos       dw   0000
+    ;; MENU REPORTES
+str_menu_reporte       db  "---MENU REPORTES---",0a,"$"
+str_menu_reporte_cat   db   "(1) Catalogo completo",0a,"$"
+str_menu_reporte_abc   db   "(2) Alfabetico de productos",0a,"$"
+str_menu_reporte_vent  db   "(3) Ventas",0a,"$"
+str_menu_reporte_exis  db   "(4) Sin existencias",0a,"$"
     ;; ESTRUCTURA PRODUCTOS
 estruct_prod_codigo    db 05 dup(0)
 estruct_prod_descrip   db 21 dup(0) ; 33d
@@ -54,7 +60,22 @@ estruct_prod_unidads   db 05 dup (0)
 num_precio_prod        dw  0000
 num_unidades_prod      dw  0000
 ceros_relleno_para_eliminar     db 2c dup(0) ; 44d -> 4 + 32 + 4 + 4
+    ;; REPORTE HTML
+str_html_inicio  db '<html><head><title>Catalogo</title></head><body style="display: flex; justify-content: center; align-items: center;">'
+str_html_inicio_fecha db '<table style="border-collapse: collapse; margin: 25px 0; font-size: 1em; font-family: sans-serif; min-width: 80vw; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);"><tr style="background-color: maroon; color: #ffffff; text-align: middle;"><td colspan="4">'
+str_html_fin_fecha db '</td></tr>'
+str_html_encabezado_tabla_catalogo db '<tr style="background-color: coral; color: #ffffff; text-align: middle;"><td>Codigo</td><td>Descripcion</td><td>Precio</td><td>Unidades</td></tr>'
+str_html_inicio_fila db "<tr>"
+str_html_inicio_columna db "<td>"
+str_html_fin_columna db "</td>"
+str_html_fin_fila db "</tr>"
+str_html_fin     db "</table></body></html>"
+str_nombre_reporte_catalogo db "CATALG.HTM",00
+str_nombre_reporte_sin_existencias db "FALTA.HTM",00
+handle_reporte_catalogo dw  0000
+handle_reporte_sin_existencia dw  0000
 
+numero_ya_en_cadena db 05 dup (30)
 
 ;; primer byte, longitud maxima de entrada 
 ;; segundo byte contienen la longitud real
@@ -74,6 +95,12 @@ str_pedir_unidad    db    "Unidades: ","$"
 ; para buscar y eliminar
 estruct_prod_codigo_temporal    db  05 dup(0)
 puntero_buscar_producto_cod     dw  0000
+
+;; anio, mes, dia
+anio_actual dw 0000
+mes_actual db ?
+dia_actual db ?
+di_actual_cadena db 3 dup('$');
 
 .CODE
 .STARTUP
@@ -403,7 +430,7 @@ menu_principal:
     cmp al, 76 ; v minúscula
     je fin 
     cmp al, 72 ; r minúscula
-    je fin 
+    je menu_reportes 
     jmp menu_principal
 
 menu_productos:
@@ -436,7 +463,44 @@ menu_productos:
     je eliminar_producto 
     cmp al, 6d ; m minúscula
     je mostrar_productos 
-    jmp menu_productos
+    jmp menu_principal
+
+menu_reportes:
+    call print_nueva_linea
+
+        ;; Mostrar Menú
+    mov dx, offset str_menu_reporte
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_reporte_cat
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_reporte_abc
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_reporte_vent
+    mov ah, 09
+    int 21
+    mov dx, offset str_menu_reporte_exis
+    mov ah, 09
+    int 21
+    mov dx, offset str_elegir_opcion
+    mov ah, 09
+    int 21
+
+        ;; Leer entrada, 1 caracter
+    mov ah, 08
+    int 21
+        ;; AL = esta el caracter leido
+    cmp al, 31 ; 1d
+    je generar_reporte_catalogo
+    cmp al, 32 ; 2d
+    je fin 
+    cmp al, 33 ; 3d
+    je fin 
+    cmp al, 34 ; 4d
+    je generar_reporte_sin_existencias 
+    jmp menu_principal
 
 ingresar_producto:
     call print_nueva_linea
@@ -914,48 +978,6 @@ guardar_producto_en_archivo:
     int 21
     jmp menu_principal    
 
-convertir_cadena_a_numero proc
-
-    ;; ENTRADA
-        ;; DI -> direccion de cadena numeroca
-    ;; SALIDA
-        ;; AX -> numero convertido
-
-    mov ax, 0000 ; inicializar salida
-    mov cx, 0000 ; inicializar contador
-
-    seguir_convirtiendo_can:
-        mov bl, [di]
-        cmp bl, 00
-        je retorno_can
-        sub bl, 30      ; bl es el valor numerico del caracter; 30 -> 48d, que es el 0 en ascii
-        mov dx, 000a    ; 10d    
-        mul dx          ; ax * dx -> dx:ax ;
-        mov bh, 00
-        add ax, bx
-        inc di
-        loop seguir_convirtiendo_can
-        jmp retorno_can
-    
-    retorno_can:
-        ret
-
-    ;; EJEMPLO FLUJO, para un valor de 123
-    ;;[31][32][33][00][00]
-    ;;     ^
-    ;;     |
-    ;;     ----- DI
-    ;;;;
-    ;;AX = 0
-    ;;10 * AX + 1  = 1
-    ;;;;
-    ;;AX = 1
-    ;;10 * AX + 2  = 12
-    ;;;;
-    ;;AX = 12
-    ;;10 * AX + 3  = 123
-    ;;;;
-convertir_cadena_a_numero endp
 
 mostrar_productos:
     call print_nueva_linea
@@ -1245,6 +1267,542 @@ copiar_codigo_producto_eliminar proc
         ret
 copiar_codigo_producto_eliminar endp
 
+generar_reporte_catalogo:
+        ; crear archivo catalogo
+    mov ah, 3c
+    mov cx, 0000
+    mov dx, offset str_nombre_reporte_catalogo
+    int 21
+    mov [handle_reporte_catalogo], ax
+        ; escribimos en archivo catalogo
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 75 ; 117d
+    mov dx, offset str_html_inicio
+    int 21
+        ; escribimos en archivo catalogo
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 00f8 ; 248d
+    mov dx, offset str_html_inicio_fecha
+    int 21
+
+    ; aca fecha
+    ; call obtener_anio_mes_dia
+    ; mov bx, [handle_reporte_catalogo]
+    ; mov ah, 40
+    ; mov cx, 0005 ; 5d
+    ; mov dx, offset dia_actual
+    ; int 21
+
+        ; escribimos en archivo catalogo
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 0a ; 10d
+    mov dx, offset str_html_fin_fecha
+    int 21
+
+        ; escribimos en archivo catalogo
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov cx, 91 ; 145d
+    mov dx, offset str_html_encabezado_tabla_catalogo
+    int 21
+
+        ; abrimos archivo productos
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_prod
+    int 21
+    jc error_generar_catalogo ; si no existe archivo
+    mov [handle_productos], ax
+    jmp ciclo_generar_reporte_catalogo
+    
+obtener_anio_mes_dia proc
+
+    ; DL = day
+    ; DH = month
+    ; CX = year
+
+    mov ah, 2a
+    int 21
+    mov dia_actual, dl
+    mov mes_actual, dh
+    mov anio_actual, cx
+
+    ; mov ax, [anio_actual]
+    ; call convertir_numero_a_cadena
+
+    ; mov ah, 09
+    ; mov dx, offset dia_actual
+    ; int 21
+
+    jmp fin
+
+    ret
+
+obtener_anio_mes_dia endp
+
+error_generar_catalogo:
+        ; cerrar archivo catalogo
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 3e
+    int 21
+    jmp menu_principal
+
+ciclo_generar_reporte_catalogo:
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0020 ; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_precio_prod
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je fin_generar_reporte_catalogo
+
+        ;; valido si es producto valido
+    mov al, 00
+    cmp [estruct_prod_codigo], al
+    je ciclo_generar_reporte_catalogo
+
+        ;; verificar codigo
+    call agregar_fila_reporte_catalogo
+
+    jmp ciclo_generar_reporte_catalogo
+
+fin_generar_reporte_catalogo:
+
+    mov bx, [handle_reporte_catalogo] ; <td>
+    mov cx, 16 ; 22d
+    mov dx, offset str_html_fin
+    mov ah, 40
+    int 21
+
+        ; cerrar chivo reporte_catalogo
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 3e
+    int 21
+
+        ; cerrar chivo productos
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+
+    jmp menu_principal
+
+agregar_fila_reporte_catalogo proc
+        ; escribimos en archivo catalogo
+    mov bx, [handle_reporte_catalogo] ; <tr>
+    mov ah, 40
+    mov cx, 0004
+    ; mov ch, 00
+    ; mov cl, 04 ; 4d
+    mov dx, offset str_html_inicio_fila
+    int 21
+
+    mov bx, [handle_reporte_catalogo] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    mov bx, [handle_reporte_catalogo]
+    mov cx, 0004
+    mov dx, offset estruct_prod_codigo
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_catalogo] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_catalogo] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    mov bx, [handle_reporte_catalogo]
+    mov cx, 20 ;; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_catalogo] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_catalogo] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    ; mov ax, [num_precio_prod]
+    ; call convertir_numero_a_cadena
+    call convertir_todos_ceros_o_normal_precio
+
+    mov bx, [handle_reporte_catalogo]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_catalogo] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_catalogo] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    ; mov ax, [num_unidades_prod]
+    ; call convertir_numero_a_cadena
+    call convertir_todos_ceros_o_normal_unidades
+
+    mov bx, [handle_reporte_catalogo]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_catalogo] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_catalogo] ; </tr>
+    mov ah, 40
+    mov cx, 0005
+    ; mov ch, 00
+    ; mov cl, 04 ; 4d
+    mov dx, offset str_html_fin_fila
+    int 21
+
+    ret
+
+agregar_fila_reporte_catalogo endp
+
+generar_reporte_sin_existencias:
+        ; crear archivo
+    mov ah, 3c
+    mov cx, 0000
+    mov dx, offset str_nombre_reporte_sin_existencias
+    int 21
+    mov [handle_reporte_sin_existencia], ax
+        ; escribimos en archivo
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 75 ; 117d
+    mov dx, offset str_html_inicio
+    int 21
+        ; escribimos en archivo
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 00f8 ; 248d
+    mov dx, offset str_html_inicio_fecha
+    int 21
+
+    ; aca fecha
+    ; call obtener_anio_mes_dia
+    ; mov bx, [handle_reporte_sin_existencia]
+    ; mov ah, 40
+    ; mov cx, 0005 ; 5d
+    ; mov dx, offset dia_actual
+    ; int 21
+
+        ; escribimos en archivo
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 0a ; 10d
+    mov dx, offset str_html_fin_fecha
+    int 21
+
+        ; escribimos en archivo
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov cx, 91 ; 145d
+    mov dx, offset str_html_encabezado_tabla_catalogo ; es la misma para este
+    int 21
+
+        ; abrimos archivo productos
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_prod
+    int 21
+    jc error_generar_rep_sin_existencias ; si no existe archivo
+    mov [handle_productos], ax
+    jmp ciclo_generar_reporte_sin_existencia
+
+error_generar_rep_sin_existencias:
+        ; cerrar archivo
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 3e
+    int 21
+    jmp menu_principal
+
+ciclo_generar_reporte_sin_existencia:
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0020 ; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_precio_prod
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je fin_generar_reporte_existencia
+
+        ;; valido si es producto valido
+    mov al, 00
+    cmp [estruct_prod_codigo], al
+    je ciclo_generar_reporte_sin_existencia
+
+        ;; validamos que sean solo productos sin existencia
+    cmp [num_unidades_prod], 00
+    jne ciclo_generar_reporte_sin_existencia
+
+        ;; agregar fila
+    call agregar_fila_reporte_sin_existencia
+
+    jmp ciclo_generar_reporte_sin_existencia
+
+fin_generar_reporte_existencia:
+
+    mov bx, [handle_reporte_sin_existencia] ; <td>
+    mov cx, 16 ; 22d
+    mov dx, offset str_html_fin
+    mov ah, 40
+    int 21
+
+        ; cerrar chivo reporte_catalogo
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 3e
+    int 21
+
+        ; cerrar chivo productos
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+
+    jmp menu_principal
+
+agregar_fila_reporte_sin_existencia proc
+        ; escribimos en archivo catalogo
+    mov bx, [handle_reporte_sin_existencia] ; <tr>
+    mov ah, 40
+    mov cx, 0004
+    ; mov ch, 00
+    ; mov cl, 04 ; 4d
+    mov dx, offset str_html_inicio_fila
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov cx, 0004
+    mov dx, offset estruct_prod_codigo
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_sin_existencia] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov cx, 20 ;; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_sin_existencia] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    call convertir_todos_ceros_o_normal_precio
+    
+    mov bx, [handle_reporte_sin_existencia]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_sin_existencia] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21    
+
+    ; mov ax, [num_unidades_prod]
+    ; call convertir_numero_a_cadena
+    call convertir_todos_ceros_o_normal_unidades
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21       
+
+    mov bx, [handle_reporte_sin_existencia] ; </tr>
+    mov ah, 40
+    mov cx, 0005
+    ; mov ch, 00
+    ; mov cl, 04 ; 4d
+    mov dx, offset str_html_fin_fila
+    int 21
+
+    ret
+
+agregar_fila_reporte_sin_existencia endp
+
+convertir_todos_ceros_o_normal_precio proc
+
+    ;; cuando tenia un valor de 0, se hacia la conversion con convertir_numero_a_cadena y genera un valor grande (el maximo)
+    ;; ahora se valida si es 0, para mostrar el numero en pantalla
+
+    cmp [num_precio_prod], 00
+    je con_todo_cero
+    jmp con_normal
+
+    con_todo_cero:
+        call convertir_a_cadena_todos_ceros ; numero_ya_en_cadena tiene todos 0
+        jmp  cont1
+
+    con_normal:
+        mov ax, [num_precio_prod]
+        call convertir_numero_a_cadena ; numero_ya_en_cadena tiene el valor convertido
+        jmp cont1
+
+    cont1:
+        ret
+
+convertir_todos_ceros_o_normal_precio endp
+
+convertir_todos_ceros_o_normal_unidades proc
+
+    ;; simplemente llena convertir_a_cadena_todos_ceros, con ceros
+    cmp [num_unidades_prod], 00
+    je con_todo_cero2
+    jmp con_normal2
+
+    con_todo_cero2:
+        call convertir_a_cadena_todos_ceros ; numero_ya_en_cadena tiene todos 0
+        jmp  cont2
+
+    con_normal2:
+        mov ax, [num_unidades_prod]
+        call convertir_numero_a_cadena ; numero_ya_en_cadena tiene el valor convertido
+        jmp cont2
+
+    cont2:
+        ret
+
+convertir_todos_ceros_o_normal_unidades endp
+
+convertir_a_cadena_todos_ceros proc
+
+    mov di, offset numero_ya_en_cadena
+    mov cx, 0005
+
+    ciclo_cac:
+        mov bl, 30 ; 0d
+        mov [di], bl
+        inc di
+        loop ciclo_cac
+        
+    ret
+convertir_a_cadena_todos_ceros endp
 
 memset proc
     ;; ENTRADA
@@ -1308,6 +1866,106 @@ imprimir_estructura proc
             int 21
             ret    
 imprimir_estructura endp
+
+convertir_cadena_a_numero proc
+
+    ;; ENTRADA
+        ;; DI -> direccion de cadena numeroca
+    ;; SALIDA
+        ;; AX -> numero convertido
+
+    mov ax, 0000 ; inicializar salida
+    mov cx, 0000 ; inicializar contador
+
+    ;;;*****
+    ; mov bl, [di]
+    ; cmp bl, '0'
+    ; je retorno_can
+    ;;;****
+
+    seguir_convirtiendo_can:
+        mov bl, [di]
+        cmp bl, 00
+        je retorno_can
+        sub bl, 30      ; bl es el valor numerico del caracter; 30 -> 48d, que es el 0 en ascii
+        mov dx, 000a    ; 10d    
+        mul dx          ; ax * dx -> dx:ax ;
+        mov bh, 00
+        add ax, bx
+        inc di
+        loop seguir_convirtiendo_can
+        jmp retorno_can
+    
+    retorno_can:
+        ret
+
+    ;; EJEMPLO FLUJO, para un valor de 123
+    ;;[31][32][33][00][00]
+    ;;     ^
+    ;;     |
+    ;;     ----- DI
+    ;;;;
+    ;;AX = 0
+    ;;10 * AX + 1  = 1
+    ;;;;
+    ;;AX = 1
+    ;;10 * AX + 2  = 12
+    ;;;;
+    ;;AX = 12
+    ;;10 * AX + 3  = 123
+    ;;;;
+convertir_cadena_a_numero endp
+
+convertir_numero_a_cadena proc
+
+    ;; ENTRADA:
+        ;;  AX -> número a convertir    
+    ;; SALIDA:
+        ;;  [numero_ya_en_cadena] -> numero convertido en cadena
+    
+        ;; reset antes
+    mov di, offset numero_ya_en_cadena
+    mov cx, 0005
+    ciclo_nye:
+        mov bl, 30 ; 0d
+        mov [di], bl
+        inc di
+        loop ciclo_nye
+
+    mov cx, ax ; inializar contador
+    mov di, offset numero_ya_en_cadena
+
+    add di, 0004
+
+    ciclo_convertir_a_cadena:
+        mov bl, [di]
+        inc bl
+        mov [di], bl
+        cmp bl, 3a ; 58d
+        je aumentar_sig_dig_primera_vez
+        loop ciclo_convertir_a_cadena
+        jmp retorno_convertir_a_cadena
+
+    aumentar_sig_dig_primera_vez:
+        push di
+
+    aumentar_sig_digito:
+        mov bl, 30     ; poner en '0' el actual
+		mov [di], bl
+		dec di         ; puntero a la cadena
+		mov bl, [di]
+		inc bl
+		mov [di], bl
+		cmp bl, 3a ; 58d
+		je aumentar_sig_digito
+		pop DI         ; se recupera DI
+		loop ciclo_convertir_a_cadena
+
+    retorno_convertir_a_cadena:
+        ret
+
+convertir_numero_a_cadena endp
+
 
 fin:
 .EXIT
