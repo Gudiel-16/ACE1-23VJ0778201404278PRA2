@@ -53,6 +53,8 @@ estruct_prod_precio    db 05 dup (0)
 estruct_prod_unidads   db 05 dup (0)
 num_precio_prod        dw  0000
 num_unidades_prod      dw  0000
+ceros_relleno_para_eliminar     db 2c dup(0) ; 44d -> 4 + 32 + 4 + 4
+
 
 ;; primer byte, longitud maxima de entrada 
 ;; segundo byte contienen la longitud real
@@ -60,14 +62,18 @@ num_unidades_prod      dw  0000
 ; buffer_producto     db 21, 00, 21 dup (0) ; 33d -> otra forma de declarar
 buffer_producto     db 21, 00 
                     db 21 dup (0) ; 33d
-str_titulo_prod     db    "-PRODUCTOS-",0a,"$"
+str_titulo_prod_ingresar db    "-INGRESAR PRODUCTO-",0a,"$"
+str_titulo_prod_eliminar db    "-ELIMINAR PRODUCTO-",0a,"$"
+str_titulo_prod_eliminado db    "-PRODUCTO ELIMINADO-",0a,"$"
+str_titulo_prod_no_se_encontro db    "-NO SE ENCONTRO PRODUCTO-",0a,"$"
 str_pedir_codigo    db    "Codigo: ","$"
 str_pedir_nombre    db    "Nombre: ","$"
 str_pedir_precio    db    "Precio: ","$"
 str_pedir_unidad    db    "Unidades: ","$"
 
-
-
+; para buscar y eliminar
+estruct_prod_codigo_temporal    db  05 dup(0)
+puntero_buscar_producto_cod     dw  0000
 
 .CODE
 .STARTUP
@@ -427,14 +433,14 @@ menu_productos:
     cmp al, 69 ; i minúscula
     je ingresar_producto
     cmp al, 62 ; b minúscula
-    je fin 
+    je eliminar_producto 
     cmp al, 6d ; m minúscula
     je mostrar_productos 
     jmp menu_productos
 
 ingresar_producto:
     call print_nueva_linea
-    mov dx, offset str_titulo_prod
+    mov dx, offset str_titulo_prod_ingresar
     mov ah, 09
     int 21
     call print_nueva_linea
@@ -906,7 +912,7 @@ guardar_producto_en_archivo:
         ;; cerrar archivo
     mov ah, 3e
     int 21
-    jmp menu_productos    
+    jmp menu_principal    
 
 convertir_cadena_a_numero proc
 
@@ -1018,11 +1024,15 @@ ciclo_mostrar_pconsola:
     jmp ciclo_mostrar_pconsola
 
 fin_mostrar_productos:
+        ;; cerrar archivo
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
         ;; pintar separador al final
     mov dx, offset separador_print_consol
     mov AH, 09
     int 21
-    jmp menu_productos
+    jmp menu_principal
 
 mostrar_codigo_producto_consola proc
     mov DI, offset estruct_prod_codigo ; <-- cambiar aqui
@@ -1061,6 +1071,180 @@ mostrar_descripcion_producto_consola proc
             call print_nueva_linea
             ret    
 mostrar_descripcion_producto_consola endp
+
+eliminar_producto:
+        ; limpiar o reiniciar puntero
+    mov dx, 0000
+    mov [puntero_buscar_producto_cod], dx
+    call print_nueva_linea
+        ; mostramos que es eliminar
+    mov dx, offset str_titulo_prod_eliminar
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+    jmp pedir_codigo_prod_eliminar
+
+pedir_codigo_prod_eliminar:
+    
+    mov di, offset estruct_prod_codigo_temporal
+    mov cx, 0004 ;
+    call memset
+
+    mov dx, offset str_pedir_codigo
+    mov ah, 09
+    int 21
+
+    call print_nueva_linea
+
+    mov dx, offset buffer_producto ;; int -> buffered keyboard input
+    mov ah, 0a
+    int 21
+
+    call print_nueva_linea
+        ;; verificar que el codigo no este vacio
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 00
+    je pedir_codigo_prod_eliminar
+
+        ;; verificar caraceres
+    mov di, offset buffer_producto
+    inc di
+    mov ch, 00
+    mov cl, [di] ; tamano leido
+    inc di ; contenido de bufer
+    call validar_codigo_prod
+    cmp dl, 0ff
+    jne pedir_codigo_prod_eliminar
+    
+    ;; verificar tamanio menor a 4
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 04
+    ja pedir_codigo_prod_eliminar ;; si es mayor que 4
+    
+    call copiar_codigo_producto_eliminar
+
+        ;; abrir archivo
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_prod
+    int 21
+    jc menu_productos ; validar por si el archivo no existe
+    mov [handle_productos], ax
+
+    jmp encontrar_producto_eliminar
+
+encontrar_producto_eliminar:
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0020 ; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_precio_prod
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je fin_borrar_productos
+
+        ;;
+    mov dx, [puntero_buscar_producto_cod]
+    add dx, 2c ; 44d estructuras -> 4 + 32 + 4 + 4 
+    mov [puntero_buscar_producto_cod], dx
+
+        ;; valido si es producto valido
+    mov al, 00
+    cmp [estruct_prod_codigo], al
+    je encontrar_producto_eliminar
+
+        ;; verificar codigo
+    mov si, offset estruct_prod_codigo_temporal
+    mov di, offset estruct_prod_codigo
+    mov cx, 0004
+    call comparar_cadenas
+    cmp dl, 0ff
+    je borrar_producto
+
+    jmp encontrar_producto_eliminar
+
+borrar_producto:
+    mov dx, [puntero_buscar_producto_cod]
+    sub dx, 2c ; 2a 46d ; resta
+    mov cx, 0000
+    mov bx, [handle_productos]
+    mov al, 00
+    mov ah, 42
+    int 21
+    ;;; puntero posicionado
+    mov cx, 2c ; 2a 44d ; bytes escribir
+    mov dx, offset ceros_relleno_para_eliminar
+    mov ah, 40
+    int 21
+    
+    ;; cerrar archivo
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+    ;; print
+    mov dx, offset str_titulo_prod_eliminado
+    mov ah, 09
+    int 21
+
+    jmp menu_principal
+
+fin_borrar_productos:
+        ;; cerrar archivo
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+        ;; print
+    mov dx, offset str_titulo_prod_no_se_encontro
+    mov ah, 09
+    int 21
+    jmp menu_principal
+
+copiar_codigo_producto_eliminar proc
+    codigo_aceptado_eli:
+        mov si, offset estruct_prod_codigo_temporal
+        mov di, offset buffer_producto
+        inc di
+        mov ch, 00
+        mov cl, [di]
+        inc di ;; posicion del contenido del buffer
+
+    copiar_codigo_aceptado_eli:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_codigo_aceptado_eli
+        call print_nueva_linea
+        ret
+copiar_codigo_producto_eliminar endp
+
 
 memset proc
     ;; ENTRADA
