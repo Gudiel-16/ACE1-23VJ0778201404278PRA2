@@ -5,7 +5,6 @@
 .DATA
 ;; VARIABLES
 nueva_linea         db  0a,"$"
-contador_global     dw  0
 str_elegir_opcion   db  "Elija una opcion:",0a,"$"
     ;; ENCABEZADO
 usac        db      "Universidad de San Carlos de Guatemala",0a,"$" ;; 0a -> nueva linea
@@ -63,8 +62,10 @@ ceros_relleno_para_eliminar     db 2c dup(0) ; 44d -> 4 + 32 + 4 + 4
     ;; REPORTE HTML
 str_html_inicio  db '<html><head><title>Catalogo</title></head><body style="display: flex; justify-content: center; align-items: center;">'
 str_html_inicio_fecha db '<table style="border-collapse: collapse; margin: 25px 0; font-size: 1em; font-family: sans-serif; min-width: 80vw; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);"><tr style="background-color: maroon; color: #ffffff; text-align: middle;"><td colspan="4">'
+str_html_inicio_fecha_abc db '<table style="border-collapse: collapse; margin: 25px 0; font-size: 1em; font-family: sans-serif; min-width: 80vw; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);"><tr style="background-color: maroon; color: #ffffff; text-align: middle;"><td colspan="2">'
 str_html_fin_fecha db '</td></tr>'
 str_html_encabezado_tabla_catalogo db '<tr style="background-color: coral; color: #ffffff; text-align: middle;"><td>Codigo</td><td>Descripcion</td><td>Precio</td><td>Unidades</td></tr>'
+str_html_encabezado_tabla_abc db '<tr style="background-color: coral; color: #ffffff; text-align: middle;"><td>Letra</td><td>Cantidad</td></tr>' ; 109d ; 6d
 str_html_inicio_fila db "<tr>"
 str_html_inicio_columna db "<td>"
 str_html_fin_columna db "</td>"
@@ -72,8 +73,10 @@ str_html_fin_fila db "</tr>"
 str_html_fin     db "</table></body></html>"
 str_nombre_reporte_catalogo db "CATALG.HTM",00
 str_nombre_reporte_sin_existencias db "FALTA.HTM",00
+str_nombre_reporte_abc db "ABC.HTM",00
 handle_reporte_catalogo dw  0000
 handle_reporte_sin_existencia dw  0000
+handle_reporte_abc dw  0000
 
 numero_ya_en_cadena db 05 dup (30)
 
@@ -96,11 +99,88 @@ str_pedir_unidad    db    "Unidades: ","$"
 estruct_prod_codigo_temporal    db  05 dup(0)
 puntero_buscar_producto_cod     dw  0000
 
+; Reporte abc
+count_ceros     dw 00
+str_count_ceros    db "0"
+count_unos      dw 00
+str_count_unos db "1"
+count_dos       dw 00
+str_count_dos  db "2"
+count_tres      dw 00
+str_count_tres db "3"
+count_cuatro    dw 00
+str_count_cuatro   db "4"
+count_cinco     dw 00
+str_count_cinco    db "5"
+count_seis      dw 00
+str_count_seis db "6"
+count_siete     dw 00
+str_count_siete    db "7"
+count_ocho      dw 00
+str_count_ocho db "8"
+count_nueve     dw 00
+str_count_nueve    db "9"
+count_a         dw 00
+str_count_a    db "A"
+count_b         dw 00
+str_count_b    db "B"
+count_c         dw 00
+str_count_c    db "C"
+count_d         dw 00
+str_count_d    db "D"
+count_e         dw 00
+str_count_e    db "E"
+count_f         dw 00
+str_count_f    db "F"
+count_g         dw 00
+str_count_g    db "G"
+count_h         dw 00
+str_count_h    db "H"
+count_i         dw 00
+str_count_i    db "I"
+count_j         dw 00
+str_count_j    db "J"
+count_k         dw 00
+str_count_k    db "K"
+count_l         dw 00
+str_count_l    db "L"
+count_m         dw 00
+str_count_m    db "M"
+count_n         dw 00
+str_count_n    db "N"
+count_o         dw 00
+str_count_o    db "O"
+count_p         dw 00
+str_count_p    db "P"
+count_q         dw 00
+str_count_q    db "Q"
+count_r         dw 00
+str_count_r    db "R"
+count_s         dw 00
+str_count_s    db "S"
+count_t         dw 00
+str_count_t    db "T"
+count_u         dw 00
+str_count_u    db "U"
+count_v         dw 00
+str_count_v    db "V"
+count_w         dw 00
+str_count_w    db "W"
+count_x         dw 00
+str_count_x    db "X"
+count_y         dw 00
+str_count_y    db "Y"
+count_z         dw 00
+str_count_z    db "Z"
+
+prueba_descrip    db "aja";
 ;; anio, mes, dia
 anio_actual dw 0000
 mes_actual db ?
 dia_actual db ?
 di_actual_cadena db 3 dup('$');
+
+aux_convert dw  00
 
 .CODE
 .STARTUP
@@ -108,6 +188,32 @@ di_actual_cadena db 3 dup('$');
 inicio:
 
 ;; ---------------------------------------------------------- ACCESO ------------------------------------------------------------------
+; prueba:
+;     mov di, offset prueba_descrip
+;     mov bl, [di]
+;     cmp bl, 'a'
+;     je aument
+;     jmp fin
+
+    ; inc count_ceros
+    ; inc count_ceros
+    ; inc count_ceros
+    ; inc count_ceros
+    ; mov ax, [count_ceros]
+    ; call convertir_numero_a_cadena
+    ; mov dx, offset numero_ya_en_cadena
+    ; mov ah, 09
+    ; int 21
+    ; jmp fin
+; aument:
+;     inc count_ceros
+;     mov ax, [count_ceros]
+;     call convertir_numero_a_cadena
+;     mov dx, offset numero_ya_en_cadena
+;     mov ah, 09
+;     int 21
+;     jmp fin
+
 call acceso
 
 acceso proc
@@ -495,7 +601,7 @@ menu_reportes:
     cmp al, 31 ; 1d
     je generar_reporte_catalogo
     cmp al, 32 ; 2d
-    je fin 
+    je generar_reporte_abc 
     cmp al, 33 ; 3d
     je fin 
     cmp al, 34 ; 4d
@@ -1769,9 +1875,1627 @@ convertir_todos_ceros_o_normal_precio proc
 
 convertir_todos_ceros_o_normal_precio endp
 
+generar_reporte_abc:
+    
+    call limpiar_valores_reporte_abc
+
+        ; crear archivo
+    mov ah, 3c
+    mov cx, 0000
+    mov dx, offset str_nombre_reporte_abc
+    int 21
+    mov [handle_reporte_abc], ax
+        ; escribimos en archivo
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 75 ; 117d
+    mov dx, offset str_html_inicio
+    int 21
+        ; escribimos en archivo
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 00f8 ; 248d
+    mov dx, offset str_html_inicio_fecha_abc
+    int 21
+
+    ; aca fecha
+    ; call obtener_anio_mes_dia
+    ; mov bx, [handle_reporte_abc]
+    ; mov ah, 40
+    ; mov cx, 0005 ; 5d
+    ; mov dx, offset dia_actual
+    ; int 21
+
+        ; escribimos en archivo
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 0a ; 10d
+    mov dx, offset str_html_fin_fecha
+    int 21
+
+        ; escribimos en archivo
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov cx, 006d ; 109d
+    mov dx, offset str_html_encabezado_tabla_abc ; es la misma para este
+    int 21
+
+        ; abrimos archivo productos
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_prod
+    int 21
+    jc error_generar_rep_abc ; si no existe archivo
+    mov [handle_productos], ax
+    jmp ciclo_generar_reporte_abc
+
+error_generar_rep_abc:
+        ; cerrar archivo
+    mov bx, [handle_reporte_abc]
+    mov ah, 3e
+    int 21
+    jmp menu_principal
+
+ciclo_generar_reporte_abc:
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0020 ; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_precio_prod
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je generar_filas_reporte_abc
+
+        ;; valido si es producto valido
+    mov al, 00
+    cmp [estruct_prod_codigo], al
+    je ciclo_generar_reporte_abc
+
+    call incrementar_valores_reporte_abc ; aumento contador segun caracter
+
+    jmp ciclo_generar_reporte_abc
+
+generar_filas_reporte_abc:
+
+    ; ---------------------- 0------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_ceros
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_ceros]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 1------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_unos
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_unos]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 2------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_dos
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_dos]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 3------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_tres
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_tres]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 4------------------------;;
+
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_cuatro
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_cuatro]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 5------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_cinco
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_cinco]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 6------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_seis
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_seis]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 7------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_siete
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_siete]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 8------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_ocho
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_ocho]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- 9------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_nueve
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_nueve]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- A------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_a
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_a]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- B------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_b
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_b]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- C------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_c
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_c]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- D------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_d
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_d]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- E------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_e
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_e]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- F------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_f
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_f]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- G------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_g
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_g]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- H------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_h
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_h]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- I------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_i
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_i]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- J------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_j
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_j]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- K------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_k
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_k]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- L------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_l
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_l]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- M------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_m
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_m]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- N------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_n
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_n]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- O------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_o
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_o]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- P------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_p
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_p]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- Q------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_q
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_q]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- R------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_r
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_r]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- S------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_s
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_s]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- T------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_t
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_t]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- U------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_u
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_u]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- V------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_v
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_v]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- W------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_w
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_w]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- X------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_x
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_x]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- Y------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_y
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_y]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- Z------------------------;;
+    call abrir_fila_reporte_abc ; <tr>
+
+    call abrir_columna_reporte_abc ; <td>
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 0001
+    mov dx, offset str_count_z
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call abrir_columna_reporte_abc ; <td>
+
+        ; escribimos valor
+    mov bx, [count_z]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_abc]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call cerrar_columna_reporte_abc ; </td>
+
+    call cerrar_fila_reporte_abc ; </tr>
+
+    ; ---------------------- FIN ------------------------;;
+
+    mov bx, [handle_reporte_abc]
+    mov cx, 16 ; 22d
+    mov dx, offset str_html_fin
+    mov ah, 40
+    int 21
+
+        ; cerrar chivo
+    mov bx, [handle_reporte_abc]
+    mov ah, 3e
+    int 21
+
+        ; cerrar chivo productos
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+
+    jmp menu_principal
+
+
+abrir_fila_reporte_abc proc
+    mov bx, [handle_reporte_abc] ; <tr>
+    mov ah, 40
+    mov cx, 0004
+    mov dx, offset str_html_inicio_fila
+    int 21
+    ret
+abrir_fila_reporte_abc endp
+
+cerrar_fila_reporte_abc proc
+    mov bx, [handle_reporte_abc] ; </tr>
+    mov ah, 40
+    mov cx, 0005
+    mov dx, offset str_html_fin_fila
+    int 21
+    ret
+cerrar_fila_reporte_abc endp
+
+abrir_columna_reporte_abc proc
+    mov bx, [handle_reporte_abc] ; <td>
+    mov cx, 0004
+    mov dx, offset str_html_inicio_columna
+    mov ah, 40
+    int 21
+    ret
+abrir_columna_reporte_abc endp
+
+cerrar_columna_reporte_abc proc
+    mov bx, [handle_reporte_abc] ; </td>
+    mov cx, 0005
+    mov dx, offset str_html_fin_columna
+    mov ah, 40
+    int 21
+    ret
+cerrar_columna_reporte_abc endp
+
+limpiar_valores_reporte_abc proc
+
+    mov count_ceros, 00 
+    mov count_unos, 00  
+    mov count_dos, 00   
+    mov count_tres, 00  
+    mov count_cuatro, 00
+    mov count_cinco, 00 
+    mov count_seis, 00  
+    mov count_siete, 00 
+    mov count_ocho, 00  
+    mov count_nueve, 00 
+    mov count_a, 00     
+    mov count_b, 00     
+    mov count_c, 00     
+    mov count_d, 00     
+    mov count_e, 00     
+    mov count_f, 00     
+    mov count_g, 00     
+    mov count_h, 00     
+    mov count_i, 00     
+    mov count_j, 00     
+    mov count_k, 00     
+    mov count_l, 00     
+    mov count_m, 00     
+    mov count_n, 00     
+    mov count_o, 00     
+    mov count_p, 00     
+    mov count_q, 00     
+    mov count_r, 00     
+    mov count_s, 00     
+    mov count_t, 00     
+    mov count_u, 00     
+    mov count_v, 00     
+    mov count_w, 00     
+    mov count_x, 00     
+    mov count_y, 00     
+    mov count_z, 00
+    ret    
+
+limpiar_valores_reporte_abc endp
+
+incrementar_valores_reporte_abc proc
+
+    mov di, offset estruct_prod_descrip
+    mov bl, [di]
+
+    cmp bl, '0'
+    je inc_cero
+    cmp bl, '1'
+    je inc_uno
+    cmp bl, '2'
+    je inc_dos
+    cmp bl, '3'
+    je inc_tres
+    cmp bl, '4'
+    je inc_cuatro
+    cmp bl, '5'
+    je inc_cinco
+    cmp bl, '6'
+    je inc_seis
+    cmp bl, '7'
+    je inc_siete
+    cmp bl, '8'
+    je inc_ocho
+    cmp bl, '9'
+    je inc_nueve
+    cmp bl, 'a'
+    je inc_a
+    cmp bl, 'A'
+    je inc_a
+    cmp bl, 'b'
+    je inc_b
+    cmp bl, 'B'
+    je inc_b
+    cmp bl, 'c'
+    je inc_c
+    cmp bl, 'C'
+    je inc_c
+    cmp bl, 'd'
+    je inc_d
+    cmp bl, 'D'
+    je inc_d
+    cmp bl, 'e'
+    je inc_e
+    cmp bl, 'E'
+    je inc_e
+    cmp bl, 'D'
+    je inc_d
+    cmp bl, 'e'
+    je inc_e
+    cmp bl, 'E'
+    je inc_e
+    cmp bl, 'f'
+    je inc_f
+    cmp bl, 'F'
+    je inc_f
+    cmp bl, 'g'
+    je inc_g
+    cmp bl, 'G'
+    je inc_g
+    cmp bl, 'h'
+    je inc_h
+    cmp bl, 'H'
+    je inc_h
+    cmp bl, 'i'
+    je inc_i
+    cmp bl, 'I'
+    je inc_i
+    cmp bl, 'j'
+    je inc_j
+    cmp bl, 'J'
+    je inc_j
+    cmp bl, 'k'
+    je inc_k
+    cmp bl, 'K'
+    je inc_k
+    cmp bl, 'l'
+    je inc_l
+    cmp bl, 'L'
+    je inc_l
+    cmp bl, 'm'
+    je inc_m
+    cmp bl, 'M'
+    je inc_m
+    cmp bl, 'n'
+    je inc_n
+    cmp bl, 'N'
+    je inc_n
+    cmp bl, 'o'
+    je inc_o
+    cmp bl, 'O'
+    je inc_o
+    cmp bl, 'p'
+    je inc_p
+    cmp bl, 'P'
+    je inc_p
+    cmp bl, 'q'
+    je inc_q
+    cmp bl, 'Q'
+    je inc_q
+    cmp bl, 'r'
+    je inc_r
+    cmp bl, 'R'
+    je inc_r
+    cmp bl, 's'
+    je inc_s
+    cmp bl, 'S'
+    je inc_s
+    cmp bl, 't'
+    je inc_t
+    cmp bl, 'T'
+    je inc_t
+    cmp bl, 'u'
+    je inc_u
+    cmp bl, 'U'
+    je inc_u
+    cmp bl, 'v'
+    je inc_v
+    cmp bl, 'V'
+    je inc_v
+    cmp bl, 'w'
+    je inc_w
+    cmp bl, 'W'
+    je inc_w
+    cmp bl, 'x'
+    je inc_x
+    cmp bl, 'X'
+    je inc_x
+    cmp bl, 'y'
+    je inc_y
+    cmp bl, 'Y'
+    je inc_y
+    cmp bl, 'z'
+    je inc_z
+    cmp bl, 'Z'
+    je inc_z
+
+    inc_cero:
+        inc count_ceros
+        jmp salir_de_incremento
+
+    inc_uno:
+        inc count_unos
+        jmp salir_de_incremento
+
+    inc_dos:
+        inc count_dos
+        jmp salir_de_incremento
+
+    inc_tres:
+        inc count_tres
+        jmp salir_de_incremento
+
+    inc_cuatro:
+        inc count_cuatro
+        jmp salir_de_incremento
+
+    inc_cinco:
+        inc count_cinco
+        jmp salir_de_incremento
+
+    inc_seis:
+        inc count_seis
+        jmp salir_de_incremento
+
+    inc_siete:
+        inc count_siete
+        jmp salir_de_incremento
+
+    inc_ocho:
+        inc count_ocho
+        jmp salir_de_incremento
+
+    inc_nueve:
+        inc count_nueve
+        jmp salir_de_incremento
+
+    inc_a:
+        inc count_a
+        jmp salir_de_incremento
+
+    inc_b:
+        inc count_b
+        jmp salir_de_incremento
+
+    inc_c:
+        inc count_c
+        jmp salir_de_incremento
+
+    inc_d:
+        inc count_d
+        jmp salir_de_incremento
+
+    inc_e:
+        inc count_e
+        jmp salir_de_incremento
+
+    inc_f:
+        inc count_f
+        jmp salir_de_incremento
+
+    inc_g:
+        inc count_g
+        jmp salir_de_incremento
+
+    inc_h:
+        inc count_h
+        jmp salir_de_incremento
+
+    inc_i:
+        inc count_i
+        jmp salir_de_incremento
+
+    inc_j:
+        inc count_j
+        jmp salir_de_incremento
+
+    inc_k:
+        inc count_k
+        jmp salir_de_incremento
+
+    inc_l:
+        inc count_l
+        jmp salir_de_incremento
+
+    inc_m:
+        inc count_m
+        jmp salir_de_incremento
+
+    inc_n:
+        inc count_n
+        jmp salir_de_incremento
+
+    inc_o:
+        inc count_o
+        jmp salir_de_incremento
+
+    inc_p:
+        inc count_p
+        jmp salir_de_incremento
+
+    inc_q:
+        inc count_q
+        jmp salir_de_incremento
+
+    inc_r:
+        inc count_r
+        jmp salir_de_incremento
+
+    inc_s:
+        inc count_s
+        jmp salir_de_incremento
+
+    inc_t:
+        inc count_t
+        jmp salir_de_incremento
+
+    inc_u:
+        inc count_u
+        jmp salir_de_incremento
+
+    inc_v:
+        inc count_v
+        jmp salir_de_incremento
+
+    inc_w:
+        inc count_w
+        jmp salir_de_incremento
+
+    inc_x:
+        inc count_x
+        jmp salir_de_incremento
+
+    inc_y:
+        inc count_y
+        jmp salir_de_incremento
+
+    inc_z:
+        inc count_z
+        jmp salir_de_incremento
+
+    salir_de_incremento:
+        ret
+    ; prueba:
+    ;     mov di, offset prueba_descrip
+    ;     mov bl, [di]
+    ;     cmp bl, 'a'
+    ;     je aument
+    ;     jmp fin
+
+        ; inc count_ceros
+        ; inc count_ceros
+        ; inc count_ceros
+        ; inc count_ceros
+        ; mov ax, [count_ceros]
+        ; call convertir_numero_a_cadena
+        ; mov dx, offset numero_ya_en_cadena
+        ; mov ah, 09
+        ; int 21
+        ; jmp fin
+    ; aument:
+    ;     inc count_ceros
+    ;     mov ax, [count_ceros]
+    ;     call convertir_numero_a_cadena
+    ;     mov dx, offset numero_ya_en_cadena
+    ;     mov ah, 09
+    ;     int 21
+    ;     jmp fin
+incrementar_valores_reporte_abc endp
+
+convertir_todos_ceros_o_normal_general proc
+
+     ;; validamos
+    cmp [aux_convert], 00
+    je con_todo_cero3
+    jmp con_normal3
+
+    con_todo_cero3:
+        call convertir_a_cadena_todos_ceros ; numero_ya_en_cadena tiene todos 0
+        jmp  cont3
+
+    con_normal3:
+        mov ax, [aux_convert]
+        call convertir_numero_a_cadena ; numero_ya_en_cadena tiene el valor convertido
+        jmp cont3
+
+    cont3:
+        ret
+
+convertir_todos_ceros_o_normal_general endp
+
 convertir_todos_ceros_o_normal_unidades proc
 
-    ;; simplemente llena convertir_a_cadena_todos_ceros, con ceros
+        ;; validamos
     cmp [num_unidades_prod], 00
     je con_todo_cero2
     jmp con_normal2
