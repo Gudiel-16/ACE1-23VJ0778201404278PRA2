@@ -102,6 +102,8 @@ str_pedir_unidad    db    "Unidades: ","$"
 
 ; para buscar y eliminar
 estruct_prod_codigo_temporal    db  05 dup(0)
+estruct_prod_unidades_temporal    db  05 dup(0)
+num_unidades_prod_venta_temporal      dw  0000
 puntero_buscar_producto_cod     dw  0000
 
 ; Reporte abc
@@ -190,15 +192,35 @@ mes_actual_cadena db 3 dup(0)
 dia_actual_cadena db 3 dup(0)
 hora_actual_cadena db 3 dup(0)
 minuto_actual_cadena db 3 dup(0)
-
+fecha_junta     db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
 aux_convert dw  00
+
+estruct_prod_codigo_venta db 05 dup (0)
+estruct_prod_unidades_venta    db 05 dup (0)
+estruc_prod_fecha_venta     db 13 (0) ; 19d
+estruc_prod_monto_venta     db 05 (0)
+str_nombre_arch_ventas   db   "VENT.BIN",00
+str_nombre_arch_ventas_temporal   db   "VTTT.BIN",00
+handle_ventas       dw   0000
+handle_ventas_temporal       dw   0000
+count_items_ventas   dw 00
+total_monto_venta dw 0000
+str_titulo_prod_sin_existencias db    "-PRODUCTO SIN EXISTENCIAS-",0a,"$"
+str_titulo_realizar_venta db    "-REALIZAR VENTA-",0a,"$"
+str_titulo_total_monto db    "-TOTAL MONTO:",0a,"$"
+str_titulo_venta_cancelada db    "-VENTA CANCELADA-",0a,"$"
+str_titulo_venta_item_guardado db    "-VENTA EXITOSA-",0a,"$"
+str_titulo_venta_item_maximo db    "-MAXIMO VENTAS REALIZADO Y GUARDADO-",0a,"$"
+str_fin_venta db    "fin"
+num_unidades_prod_siempre_vacio      dw  0000
 
 .CODE
 .STARTUP
 ;; CODIGO
 inicio:
 
-    ; call obtener_hora_minutos
+    ; call obtener_fecha_junta
+    ; call imprimir_estructura
     ; jmp fin
 ;; ---------------------------------------------------------- ACCESO ------------------------------------------------------------------
 ; prueba:
@@ -263,10 +285,10 @@ acceso proc
     cmp dl, 0ff
     jne eti_error_cred_acceso
         ;; imprimir literal 'credenciales'
-    mov dx, offset buffer_leido_actual
-    mov ah, 09
-    int 21
-    call print_nueva_linea
+    ; mov dx, offset buffer_leido_actual
+    ; mov ah, 09
+    ; int 21
+    ; call print_nueva_linea
 
         ;; extraemos palabra ya sea 'usuario=' o 'clave='
     call limpiar_buffer_leido_actual
@@ -547,9 +569,11 @@ menu_principal:
     cmp al, 70 ; p minúscula
     je menu_productos
     cmp al, 76 ; v minúscula
-    je fin 
+    je realizar_venta 
     cmp al, 72 ; r minúscula
     je menu_reportes 
+    cmp al, 20 ; espacio
+    je fin 
     jmp menu_principal
 
 menu_productos:
@@ -1301,7 +1325,7 @@ pedir_codigo_prod_eliminar:
     mov ah, 3d
     mov dx, offset str_nombre_arch_prod
     int 21
-    jc menu_productos ; validar por si el archivo no existe
+    jc menu_principal ; validar por si el archivo no existe
     mov [handle_productos], ax
 
     jmp encontrar_producto_eliminar
@@ -3867,6 +3891,629 @@ obtener_hora_minutos proc
 
 obtener_hora_minutos endp
 
+obtener_fecha_junta proc
+
+    call obtener_anio_mes_dia
+    call obtener_hora_minutos
+
+        ; copiando dia
+    mov cx, 02
+    mov si, offset fecha_junta
+    mov di, offset dia_actual_cadena
+
+    copiar_dia:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_dia
+
+    mov al, 2f
+    mov [si], al ; /
+    inc si
+
+        ; copiando mes
+    mov cx, 02
+    mov di, offset mes_actual_cadena
+
+    copiar_mes:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_mes
+
+    mov al, 2f
+    mov [si], al ; /
+    inc si
+
+        ; copiando anio
+    mov cx, 04
+    mov di, offset anio_actual_cadena
+
+    copiar_anio:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_anio
+
+        ; copiando separador
+    mov cx, 03
+    mov di, offset comas_simbolo
+
+    copiar_sepa:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_sepa
+
+        ; copiando hora
+    mov cx, 02
+    mov di, offset hora_actual_cadena
+
+    copiar_hora:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_hora
+
+    mov al, 3a
+    mov [si], al ; :
+    inc si
+
+       ; copiando minutos
+    mov cx, 02
+    mov di, offset minuto_actual_cadena
+
+    copiar_minuto:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_minuto
+
+    ret
+
+obtener_fecha_junta endp
+
+realizar_venta:
+        ; limpiar o reiniciar puntero
+    mov dx, 0000
+    mov [puntero_buscar_producto_cod], dx
+    call print_nueva_linea
+        ; reiniciar contador
+    mov count_items_ventas, 00
+        ;; crear archivo venta temporal
+    mov ah, 3c
+    mov cx, 0000
+    mov dx, offset str_nombre_arch_ventas_temporal
+    int 21
+    mov [handle_ventas_temporal], ax
+        ; mostramos que es venta
+    mov dx, offset str_titulo_realizar_venta
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+    jmp solicitar_codigo_venta
+
+solicitar_codigo_venta:
+    
+    mov di, offset estruct_prod_codigo_temporal
+    mov cx, 0004 ;
+    call memset
+
+    mov dx, offset str_pedir_codigo
+    mov ah, 09
+    int 21
+
+    call print_nueva_linea
+
+    mov dx, offset buffer_producto ;; int -> buffered keyboard input
+    mov ah, 0a
+    int 21
+
+        ;; verificar si queria salir, cuando escriba 'fin'
+    call copiar_codigo_producto_eliminar ; se reutiliza el mismo en este caso, copia a estruc_prod_codigo_temporal
+    mov si, offset str_fin_venta
+    mov di, offset estruct_prod_codigo_temporal
+    mov cx, 0003
+    call comparar_cadenas
+    cmp dl, 0ff
+    je finalizar_venta 
+    
+        ;; verificar que el codigo no este vacio
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 00
+    je solicitar_codigo_venta
+
+        ;; verificar caraceres
+    mov di, offset buffer_producto
+    inc di
+    mov ch, 00
+    mov cl, [di] ; tamano leido
+    inc di ; contenido de bufer
+    call validar_codigo_prod
+    cmp dl, 0ff
+    jne solicitar_codigo_venta
+    
+        ;; verificar tamanio menor a 4
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 04
+    ja solicitar_codigo_venta ;; si es mayor que 4
+    
+    ; call copiar_codigo_producto_eliminar ; se reutiliza el mismo en este caso, copia a estruc_prod_codigo_temporal
+
+    jmp solicitar_unidades_venta
+
+solicitar_unidades_venta:
+
+    call print_nueva_linea
+    mov dx, offset str_pedir_unidad
+    mov ah, 09
+    int 21
+
+    call print_nueva_linea
+
+    mov dx, offset buffer_producto ;; int -> buffered keyboard input
+    mov ah, 0a
+    int 21
+
+    call print_nueva_linea
+
+        ;; verificar que no este vacio
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 00
+    je solicitar_unidades_venta
+
+        ;; verificar caraceres
+    mov di, offset buffer_producto
+    inc di
+    mov ch, 00
+    mov cl, [di] ; tamano leido
+    inc di ; contenido de bufer
+    call validar_campo_numerico
+    cmp dl, 0ff
+    jne solicitar_unidades_venta
+    
+    ;; verificar tamanio menor a 6
+    mov di, offset buffer_producto
+    inc di
+    mov al, [di]
+    cmp al, 05 ; 6d
+    ja solicitar_unidades_venta ;; si es mayor que 5
+    
+    call copiar_unidades_producto_venta
+
+        ;; convertimos
+    mov di, offset estruct_prod_unidades_temporal
+    call convertir_cadena_a_numero
+    mov [num_unidades_prod_venta_temporal], ax
+
+        ;; limpiamos
+    mov di, offset estruct_prod_unidades_temporal
+    mov cx, 0005
+    call memset
+
+        ;; abrir archivo productos
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_prod
+    int 21
+    jc error_hacer_venta ; validar por si el archivo no existe
+    mov [handle_productos], ax
+
+    jmp encontrar_producto_venta ; empezar a guardar producto
+
+error_hacer_venta:
+    ;; cerrar archivo
+    mov bx, [handle_ventas_temporal]
+    mov ah, 3e
+    int 21
+    jmp menu_principal    
+
+copiar_unidades_producto_venta proc
+    unidad_aceptada2:
+        mov si, offset estruct_prod_unidades_temporal
+        mov di, offset buffer_producto
+        inc di
+        mov ch, 00
+        mov cl, [di]
+        inc di ;; posicion del contenido del buffer
+
+    copiar_unidad_aceptada2:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_unidad_aceptada2
+        call print_nueva_linea
+        ret
+copiar_unidades_producto_venta endp
+
+encontrar_producto_venta:
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0020 ; 32d
+    mov dx, offset estruct_prod_descrip
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_precio_prod
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_productos]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je fin_buscar_producto
+
+        ;;
+    mov dx, [puntero_buscar_producto_cod]
+    add dx, 2c ; 44d estructuras -> 4 + 32 + 4 + 4 
+    mov [puntero_buscar_producto_cod], dx
+
+        ;; valido si es producto valido
+    mov al, 00
+    cmp [estruct_prod_codigo], al
+    je encontrar_producto_venta
+
+        ;; verificar codigo
+    mov si, offset estruct_prod_codigo_temporal
+    mov di, offset estruct_prod_codigo
+    mov cx, 0004
+    call comparar_cadenas
+    cmp dl, 0ff
+    je validar_venta ; entonctro el producto, verificar stock
+
+    jmp encontrar_producto_venta
+
+fin_buscar_producto:
+        ;; cerrar archivo
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+        ;; print
+    mov dx, offset str_titulo_prod_no_se_encontro
+    mov ah, 09
+    int 21
+
+    jmp solicitar_codigo_venta
+
+validar_venta:
+    ; num_unidades_prod -> unidades  del producto encontrado
+    ; num_unidades_prod_venta_temporal -> ingresado por el usuario
+    mov ax, [num_unidades_prod]
+    mov bx, [num_unidades_prod_venta_temporal]
+
+    cmp ax, bx
+    jb no_hay_existencia_producto ; ax < bx
+    jmp desea_hacer_la_venta_o_cancelar
+
+no_hay_existencia_producto:
+        ;; cerrar archivo
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+        ;; print
+    mov dx, offset str_titulo_prod_sin_existencias
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+    jmp solicitar_codigo_venta
+
+desea_hacer_la_venta_o_cancelar:
+    call print_monto_venta
+    call print_nueva_linea
+    call print_nueva_linea
+
+    mov dx, offset str_titulo_prod_que_desea_hacer
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+    ;; Leer entrada, 1 caracter
+    mov ah, 08
+    int 21
+    cmp al, 0d ; enter
+    je generar_y_guardar_item
+    cmp al, 71 ; q
+    je cancelar_venta_item
+    jmp desea_hacer_la_venta_o_cancelar
+
+cancelar_venta_item:
+        ;; cerrar archivo
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+        ;; print
+    mov dx, offset str_titulo_venta_cancelada
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+    jmp solicitar_codigo_venta
+
+generar_y_guardar_item:
+    ; num_unidades_prod -> unidades  del producto encontrado
+    ; num_precio_prod -> precio del producto encontrado
+    ; num_unidades_prod_venta_temporal -> ingresado por el usuario
+
+        ; posicionar_puntero en las unidades
+    mov dx, [puntero_buscar_producto_cod]
+    sub dx, 2c ; 2a 44d ; resta -> para regresar en donde comienza codigo de producto
+    add dx, 28 ; 40d -> nos posicionamos cabal donde empiezan las unidades
+    mov cx, 0000
+    mov bx, [handle_productos]
+    mov al, 00
+    mov ah, 42
+    int 21
+        ; rellenar esa pocicion de ceros
+    mov cx, 04 ; 2a 44d ; bytes escribir
+    mov dx, offset num_unidades_prod_siempre_vacio
+    mov ah, 40
+    int 21
+
+        ; hacemos resta, para actualizar en archivo producto
+    mov ax, [num_unidades_prod]
+    mov bx, [num_unidades_prod_venta_temporal]
+    sub ax, bx
+    mov [num_unidades_prod], ax ; guardamos el nuevo valor
+
+        ; nos volvemos a posicionar
+    mov dx, [puntero_buscar_producto_cod]
+    sub dx, 2c ; 2a 44d ; resta -> para regresar en donde comienza codigo de producto
+    add dx, 28 ; 40d -> nos posicionamos cabal donde empiezan las unidades
+    mov cx, 0000
+    mov bx, [handle_productos]
+    mov al, 00
+    mov ah, 42
+    int 21
+        ; guardamos nuevo valor en el archivo productos
+    mov cx, 04 ; 2a 44d ; bytes escribir
+    mov dx, offset num_unidades_prod
+    mov ah, 40
+    int 21
+
+        ; imprimimos
+    mov dx, offset str_titulo_venta_item_guardado
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+
+    ;     ; calculamos monto de venta
+    ; mov ax, [num_precio_prod]
+    ; mov bx, [num_unidades_prod_venta_temporal]
+    ; mul bx
+    ; mov [total_monto_venta], ax
+
+    ;     ; imprimimos palabra monto
+    ; mov dx, offset str_titulo_total_monto
+    ; mov ah, 09
+    ; int 21
+
+    ;     ; convertimos total monto a cadena
+    ; mov bx, [total_monto_venta]
+    ; mov [aux_convert], bx
+    ; call convertir_todos_ceros_o_normal_general
+
+    call print_monto_venta
+    call print_nueva_linea
+
+        ; cerrar archivo
+    mov bx, [handle_productos]
+    mov ah, 3e
+    int 21
+
+        ; guarda en -> fecha_junta
+    call obtener_fecha_junta ; dia, mes, anio, hora, minutos
+
+        ;; guardar item en archivo
+        ;; vamos al final del archivo
+    mov bx, [handle_ventas_temporal]
+    mov cx, 00
+    mov dx, 00
+    mov al, 02
+    mov ah, 42
+    int 21
+
+        ;; escribimos en el archivo
+    mov cx, 12 ; 18d
+    mov dx, offset fecha_junta
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset estruct_prod_codigo_temporal
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset num_unidades_prod_venta_temporal
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset total_monto_venta
+    mov ah, 40
+    int 21
+
+    inc count_items_ventas
+    cmp [count_items_ventas], 0a ; 10d
+    ; cmp [count_items_ventas], 02 ; 2d
+    je finalizar_venta
+
+    jmp solicitar_codigo_venta ; pa' mientras
+
+finalizar_venta:
+
+        ;; vamos al inicio del archivo
+    mov bx, [handle_ventas_temporal]
+    mov cx, 00
+    mov dx, 00
+    mov al, 00
+    mov ah, 42
+    int 21
+
+        ;; abrimos ventas, si no creamos archivo
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_ventas
+    int 21
+    jc crear_archivo_ventas
+    mov [handle_ventas], ax
+    jmp copiar_datos_temp_a_ventas
+
+crear_archivo_ventas:
+    mov cx, 0000
+    mov dx, offset str_nombre_arch_ventas
+    mov ah, 3c
+    int 21
+    mov [handle_ventas], ax
+    jmp copiar_datos_temp_a_ventas
+
+copiar_datos_temp_a_ventas:
+
+    ;; avanzar puntero
+    mov bx, [handle_ventas_temporal]
+    mov cx, 12 ; 18d
+    mov dx, offset fecha_junta
+    mov ah, 3f
+    int 21
+
+    ;; avanzar puntero
+    mov bx, [handle_ventas_temporal]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo_temporal
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_ventas_temporal]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod_venta_temporal
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_ventas_temporal]
+    mov cx, 0004
+    mov dx, offset total_monto_venta
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je fin_copiar_t_a_v
+
+    call guardar_datos_en_ventas
+
+    jmp copiar_datos_temp_a_ventas
+
+fin_copiar_t_a_v:
+    ; cerrar archivo
+    mov bx, [handle_ventas_temporal]
+    mov ah, 3e
+    int 21
+
+    ; cerrar archivo
+    mov bx, [handle_ventas]
+    mov ah, 3e
+    int 21
+
+        ; print
+    mov dx, offset str_titulo_venta_item_maximo
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+
+    jmp menu_principal
+
+guardar_datos_en_ventas proc
+        ;; vamos al final del archivo
+    mov bx, [handle_ventas]
+    mov cx, 00
+    mov dx, 00
+    mov al, 02
+    mov ah, 42
+    int 21
+
+        ;; escribimos en el archivo
+    mov cx, 12 ; 18d
+    mov dx, offset fecha_junta
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset estruct_prod_codigo_temporal
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset num_unidades_prod_venta_temporal
+    mov ah, 40
+    int 21
+
+    mov cx, 0004
+    mov dx, offset total_monto_venta
+    mov ah, 40
+    int 21
+
+    ret
+guardar_datos_en_ventas endp
+
+
+print_monto_venta proc
+    ; num_precio_prod -> precio del producto encontrado
+    ; num_unidades_prod_venta_temporal -> ingresado por el usuario
+
+        ; calculamos monto de venta
+    mov ax, [num_precio_prod]
+    mov bx, [num_unidades_prod_venta_temporal]
+    mul bx
+    mov [total_monto_venta], ax
+
+        ; imprimimos palabra monto
+    mov dx, offset str_titulo_total_monto
+    mov ah, 09
+    int 21
+
+        ; convertimos total monto a cadena
+    mov bx, [total_monto_venta]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+
+        ; print numero
+    mov bx, 01
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    ret
+print_monto_venta endp
 
 memset proc
     ;; ENTRADA
@@ -3911,7 +4558,7 @@ comparar_cadenas proc
 comparar_cadenas endp
 
 imprimir_estructura proc
-    mov DI, offset minuto_actual_cadena ; <-- cambiar aqui
+    mov DI, offset numero_ya_en_cadena ; <-- cambiar aqui
     ciclo_buscar_posicion_null:
             mov AL, [DI]
             cmp AL, 00 ; para cuando encuenra 0
@@ -3922,7 +4569,7 @@ imprimir_estructura proc
             mov AL, 24  ;; agregar dolar al final
             mov [DI], AL
             ;; imprimir normal
-            mov DX, offset minuto_actual_cadena ; <-- cambiar aqui
+            mov DX, offset numero_ya_en_cadena ; <-- cambiar aqui
             mov AH, 09
             int 21
             mov DX, offset nueva_linea
