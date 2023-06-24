@@ -59,6 +59,7 @@ estruct_prod_unidads   db 05 dup (0)
 num_precio_prod        dw  0000
 num_unidades_prod      dw  0000
 ceros_relleno_para_eliminar     db 2c dup(0) ; 44d -> 4 + 32 + 4 + 4
+count_mostrar_prod_consola  dw  00
     ;; REPORTE HTML
 str_html_inicio  db '<html><head><title>Catalogo</title></head><body style="display: flex; justify-content: center; align-items: center;">'
 str_html_inicio_fecha db '<table style="border-collapse: collapse; margin: 25px 0; font-size: 1em; font-family: sans-serif; min-width: 80vw; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);"><tr style="background-color: maroon; color: #ffffff; text-align: middle;"><td colspan="4">'
@@ -90,6 +91,7 @@ str_titulo_prod_ingresar db    "-INGRESAR PRODUCTO-",0a,"$"
 str_titulo_prod_eliminar db    "-ELIMINAR PRODUCTO-",0a,"$"
 str_titulo_prod_eliminado db    "-PRODUCTO ELIMINADO-",0a,"$"
 str_titulo_prod_no_se_encontro db    "-NO SE ENCONTRO PRODUCTO-",0a,"$"
+str_titulo_prod_que_desea_hacer db    "Enter para continuar... q para salir...",0a,"$"
 str_pedir_codigo    db    "Codigo: ","$"
 str_pedir_nombre    db    "Nombre: ","$"
 str_pedir_precio    db    "Precio: ","$"
@@ -1149,9 +1151,37 @@ ciclo_mostrar_pconsola:
     call mostrar_codigo_producto_consola
     call mostrar_descripcion_producto_consola
 
+        ;; mostrar productos, de 5 en 5
+    inc count_mostrar_prod_consola
+    cmp [count_mostrar_prod_consola], 05
+    je que_desea_hacer
+
+    jmp ciclo_mostrar_pconsola
+
+que_desea_hacer:
+    call print_nueva_linea
+    mov dx, offset str_titulo_prod_que_desea_hacer
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+    ;; Leer entrada, 1 caracter
+    mov ah, 08
+    int 21
+    cmp al, 0d ; enter
+    je seguir_mostrando
+    cmp al, 71 ; q
+    je fin_mostrar_productos
+    jmp que_desea_hacer
+
+seguir_mostrando:
+    call print_nueva_linea
+    mov count_mostrar_prod_consola, 00 ; reiniciamos contador nuevamente
     jmp ciclo_mostrar_pconsola
 
 fin_mostrar_productos:
+
+    mov count_mostrar_prod_consola, 00 ; reiniciamos contador nuevamente
+
         ;; cerrar archivo
     mov bx, [handle_productos]
     mov ah, 3e
