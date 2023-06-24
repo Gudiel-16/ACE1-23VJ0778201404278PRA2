@@ -32,6 +32,9 @@ comillas            db '"'
 corchete_abre       db '['
 corchete_cierre     db ']'
 igual_simbolo       db  '='
+diagonal_simbolo    db  '/'
+dos_puntos_simbolo  db ':'
+comas_simbolo        db ",,,"
 separador_print_consol  db  "====================",0a,"$"
     ;; MENU PRINCIPAL
 str_menu_princ          db  "---Menu Principal---",0a,"$"
@@ -61,7 +64,7 @@ num_unidades_prod      dw  0000
 ceros_relleno_para_eliminar     db 2c dup(0) ; 44d -> 4 + 32 + 4 + 4
 count_mostrar_prod_consola  dw  00
     ;; REPORTE HTML
-str_html_inicio  db '<html><head><title>Catalogo</title></head><body style="display: flex; justify-content: center; align-items: center;">'
+str_html_inicio  db '<html><head><title>Reportes</title></head><body style="display: flex; justify-content: center; align-items: center;">'
 str_html_inicio_fecha db '<table style="border-collapse: collapse; margin: 25px 0; font-size: 1em; font-family: sans-serif; min-width: 80vw; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);"><tr style="background-color: maroon; color: #ffffff; text-align: middle;"><td colspan="4">'
 str_html_inicio_fecha_abc db '<table style="border-collapse: collapse; margin: 25px 0; font-size: 1em; font-family: sans-serif; min-width: 80vw; box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);"><tr style="background-color: maroon; color: #ffffff; text-align: middle;"><td colspan="2">'
 str_html_fin_fecha db '</td></tr>'
@@ -180,7 +183,13 @@ prueba_descrip    db "aja";
 anio_actual dw 0000
 mes_actual db ?
 dia_actual db ?
-di_actual_cadena db 3 dup('$');
+hora_actual db ?
+minuto_actual db ?
+anio_actual_cadena db 5 dup(0)
+mes_actual_cadena db 3 dup(0)
+dia_actual_cadena db 3 dup(0)
+hora_actual_cadena db 3 dup(0)
+minuto_actual_cadena db 3 dup(0)
 
 aux_convert dw  00
 
@@ -189,6 +198,8 @@ aux_convert dw  00
 ;; CODIGO
 inicio:
 
+    ; call obtener_hora_minutos
+    ; jmp fin
 ;; ---------------------------------------------------------- ACCESO ------------------------------------------------------------------
 ; prueba:
 ;     mov di, offset prueba_descrip
@@ -1425,13 +1436,74 @@ generar_reporte_catalogo:
     mov dx, offset str_html_inicio_fecha
     int 21
 
-    ; aca fecha
-    ; call obtener_anio_mes_dia
-    ; mov bx, [handle_reporte_catalogo]
-    ; mov ah, 40
-    ; mov cx, 0005 ; 5d
-    ; mov dx, offset dia_actual
-    ; int 21
+        ;; fecha-hora
+    call obtener_anio_mes_dia
+
+    call obtener_hora_minutos
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset dia_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset diagonal_simbolo
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset mes_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset diagonal_simbolo
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 04 ; 4d
+    mov dx, offset anio_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 03 ; 1d
+    mov dx, offset comas_simbolo
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset hora_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset dos_puntos_simbolo
+    int 21
+
+    mov bx, [handle_reporte_catalogo]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset minuto_actual_cadena
+    int 21
+        ;; fin fecha-hora
 
         ; escribimos en archivo catalogo
     mov bx, [handle_reporte_catalogo]
@@ -1457,30 +1529,6 @@ generar_reporte_catalogo:
     mov [handle_productos], ax
     jmp ciclo_generar_reporte_catalogo
     
-obtener_anio_mes_dia proc
-
-    ; DL = day
-    ; DH = month
-    ; CX = year
-
-    mov ah, 2a
-    int 21
-    mov dia_actual, dl
-    mov mes_actual, dh
-    mov anio_actual, cx
-
-    ; mov ax, [anio_actual]
-    ; call convertir_numero_a_cadena
-
-    ; mov ah, 09
-    ; mov dx, offset dia_actual
-    ; int 21
-
-    jmp fin
-
-    ret
-
-obtener_anio_mes_dia endp
 
 error_generar_catalogo:
         ; cerrar archivo catalogo
@@ -1676,13 +1724,74 @@ generar_reporte_sin_existencias:
     mov dx, offset str_html_inicio_fecha
     int 21
 
-    ; aca fecha
-    ; call obtener_anio_mes_dia
-    ; mov bx, [handle_reporte_sin_existencia]
-    ; mov ah, 40
-    ; mov cx, 0005 ; 5d
-    ; mov dx, offset dia_actual
-    ; int 21
+        ;; fecha-hora
+    call obtener_anio_mes_dia
+
+    call obtener_hora_minutos
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset dia_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset diagonal_simbolo
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset mes_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset diagonal_simbolo
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 04 ; 4d
+    mov dx, offset anio_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 03 ; 1d
+    mov dx, offset comas_simbolo
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset hora_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset dos_puntos_simbolo
+    int 21
+
+    mov bx, [handle_reporte_sin_existencia]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset minuto_actual_cadena
+    int 21
+        ;; fin fecha-hora
 
         ; escribimos en archivo
     mov bx, [handle_reporte_sin_existencia]
@@ -1930,13 +2039,74 @@ generar_reporte_abc:
     mov dx, offset str_html_inicio_fecha_abc
     int 21
 
-    ; aca fecha
-    ; call obtener_anio_mes_dia
-    ; mov bx, [handle_reporte_abc]
-    ; mov ah, 40
-    ; mov cx, 0005 ; 5d
-    ; mov dx, offset dia_actual
-    ; int 21
+        ;; fecha-hora
+    call obtener_anio_mes_dia
+
+    call obtener_hora_minutos
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset dia_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset diagonal_simbolo
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset mes_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset diagonal_simbolo
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 04 ; 4d
+    mov dx, offset anio_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 03 ; 1d
+    mov dx, offset comas_simbolo
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset hora_actual_cadena
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 01 ; 1d
+    mov dx, offset dos_puntos_simbolo
+    int 21
+
+    mov bx, [handle_reporte_abc]
+    mov ah, 40
+    mov ch, 00
+    mov cl, 02 ; 2d
+    mov dx, offset minuto_actual_cadena
+    int 21
+        ;; fin fecha-hora
 
         ; escribimos en archivo
     mov bx, [handle_reporte_abc]
@@ -3558,6 +3728,146 @@ convertir_a_cadena_todos_ceros proc
     ret
 convertir_a_cadena_todos_ceros endp
 
+obtener_anio_mes_dia proc
+
+    ; DL = day
+    ; DH = month
+    ; CX = year
+    ; FLUJO:
+        ; ax = ah concat al -> ax = 0000, al = dia actual -> ax quedaria algo asi -> ax= 0002 = ah|al
+        ; numero_ya_en_cadena devuelve por ejemplo 00024, nos desplazamos para obtener 24 nada mas
+
+    mov ah, 2a
+    int 21
+    mov dia_actual, dl
+    mov mes_actual, dh
+    mov anio_actual, cx
+
+        ; sumamos 1 al dia; para que 1 = domingo
+    ; mov ax, 0000
+    ; mov al, dia_actual
+    ; mov bx, 0001
+    ; add ax, bx
+    ; mov [dia_actual], al
+
+        ; convirtiendo dia
+    mov ax, 0000
+    mov al, dia_actual
+    call convertir_numero_a_cadena
+
+        ; guardando dia
+    mov si, offset dia_actual_cadena
+    mov di, offset numero_ya_en_cadena
+    
+    inc di ; segunda posicion
+    inc di ; tercera posicion
+    inc di ; cuarta posicion
+    mov al, [di]
+    mov [si], al
+    inc di  ; quinta posicion
+    inc si  ; segunda posicion
+    mov al, [di]
+    mov [si], al
+
+        ; convirtiendo mes
+    mov ax, 0000
+    mov al, mes_actual
+    call convertir_numero_a_cadena
+        ; guardando dia
+    mov si, offset mes_actual_cadena
+    mov di, offset numero_ya_en_cadena
+
+    inc di ; segunda posicion
+    inc di ; tercera posicion
+    inc di ; cuarta posicion
+    mov al, [di]
+    mov [si], al
+    inc di  ; quinta posicion
+    inc si  ; segunda posicion
+    mov al, [di]
+    mov [si], al
+
+        ; conviertiendo anio
+    mov ax, [anio_actual]
+    call convertir_numero_a_cadena
+        ; guardnado anio
+    mov si, offset anio_actual_cadena
+    mov di, offset numero_ya_en_cadena
+
+    inc di ; segunda posicion
+    mov al, [di]
+    mov [si], al
+    inc di  ; tercera posicion
+    inc si  ; segunda posicion
+    mov al, [di]
+    mov [si], al
+    inc di  ; cuarta posicion
+    inc si  ; tercera posicion
+    mov al, [di]
+    mov [si], al
+    inc di  ; quinta posicion
+    inc si  ; cuarta posicion
+    mov al, [di]
+    mov [si], al
+    
+    ret
+
+obtener_anio_mes_dia endp
+
+obtener_hora_minutos proc
+
+    ; CH = horas
+    ; CL = minutos
+    ; DH = segundos
+
+    mov ah, 2c
+    int 21
+    mov hora_actual, ch
+    mov minuto_actual, cl
+
+        ; convirtiendo hora
+    mov ax, 0000
+    mov al, hora_actual
+    call convertir_numero_a_cadena
+
+        ; guardando hora
+    mov si, offset hora_actual_cadena
+    mov di, offset numero_ya_en_cadena
+    
+    inc di ; segunda posicion
+    inc di ; tercera posicion
+    inc di ; cuarta posicion
+    mov al, [di]
+    mov [si], al
+    inc di  ; quinta posicion
+    inc si  ; segunda posicion
+    mov al, [di]
+    mov [si], al
+
+        ; convirtiendo minuto
+    mov ax, 0000
+    mov al, minuto_actual
+    call convertir_numero_a_cadena
+
+        ; guardando minuto
+    mov si, offset minuto_actual_cadena
+    mov di, offset numero_ya_en_cadena
+
+    inc di ; segunda posicion
+    inc di ; tercera posicion
+    inc di ; cuarta posicion
+    mov al, [di]
+    mov [si], al
+    inc di  ; quinta posicion
+    inc si  ; segunda posicion
+    mov al, [di]
+    mov [si], al
+    
+    ret
+
+obtener_hora_minutos endp
+
+
 memset proc
     ;; ENTRADA
     ;;  DI -> direccion de cadena
@@ -3601,7 +3911,7 @@ comparar_cadenas proc
 comparar_cadenas endp
 
 imprimir_estructura proc
-    mov DI, offset estruct_prod_codigo ; <-- cambiar aqui
+    mov DI, offset minuto_actual_cadena ; <-- cambiar aqui
     ciclo_buscar_posicion_null:
             mov AL, [DI]
             cmp AL, 00 ; para cuando encuenra 0
@@ -3612,7 +3922,7 @@ imprimir_estructura proc
             mov AL, 24  ;; agregar dolar al final
             mov [DI], AL
             ;; imprimir normal
-            mov DX, offset estruct_prod_codigo ; <-- cambiar aqui
+            mov DX, offset minuto_actual_cadena ; <-- cambiar aqui
             mov AH, 09
             int 21
             mov DX, offset nueva_linea
