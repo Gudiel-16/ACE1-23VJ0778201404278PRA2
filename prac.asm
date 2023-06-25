@@ -204,15 +204,21 @@ str_nombre_arch_ventas_temporal   db   "VTTT.BIN",00
 handle_ventas       dw   0000
 handle_ventas_temporal       dw   0000
 count_items_ventas   dw 00
-total_monto_venta dw 0000
+total_monto_venta dw 0000 ; el que se guarda en el archivo
+total_monto_venta_mostrar_en_pantalla dw 0000 ; el que hay que ir mostrando en pantalla
 str_titulo_prod_sin_existencias db    "-PRODUCTO SIN EXISTENCIAS-",0a,"$"
 str_titulo_realizar_venta db    "-REALIZAR VENTA-",0a,"$"
-str_titulo_total_monto db    "-TOTAL MONTO:",0a,"$"
+str_titulo_total_monto db    "-TOTAL MONTO ITEM:",0a,"$"
+str_titulo_total_monto_acumulado db    "-TOTAL MONTO:",0a,"$"
 str_titulo_venta_cancelada db    "-VENTA CANCELADA-",0a,"$"
-str_titulo_venta_item_guardado db    "-VENTA EXITOSA-",0a,"$"
-str_titulo_venta_item_maximo db    "-MAXIMO VENTAS REALIZADO Y GUARDADO-",0a,"$"
+str_titulo_venta_item_guardado db    "-VENTA GUARDADA-",0a,"$"
+str_titulo_venta_item_maximo db    "-VENTA EXITOSA-",0a,"$"
 str_fin_venta db    "fin"
 num_unidades_prod_siempre_vacio      dw  0000
+num_fecha_junta_siempre_vacio  db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
+num_unidades_prod_venta_temporal_siempre_vacio dw 0000
+total_monto_venta_siempre_vacio dw 0000
+
 
 .CODE
 .STARTUP
@@ -3986,6 +3992,7 @@ realizar_venta:
     call print_nueva_linea
         ; reiniciar contador
     mov count_items_ventas, 00
+    mov total_monto_venta_mostrar_en_pantalla, 0000
         ;; crear archivo venta temporal
     mov ah, 3c
     mov cx, 0000
@@ -4303,23 +4310,8 @@ generar_y_guardar_item:
     int 21
     call print_nueva_linea
 
-    ;     ; calculamos monto de venta
-    ; mov ax, [num_precio_prod]
-    ; mov bx, [num_unidades_prod_venta_temporal]
-    ; mul bx
-    ; mov [total_monto_venta], ax
-
-    ;     ; imprimimos palabra monto
-    ; mov dx, offset str_titulo_total_monto
-    ; mov ah, 09
-    ; int 21
-
-    ;     ; convertimos total monto a cadena
-    ; mov bx, [total_monto_venta]
-    ; mov [aux_convert], bx
-    ; call convertir_todos_ceros_o_normal_general
-
-    call print_monto_venta
+    call print_monto_venta_acumulado
+    call print_nueva_linea
     call print_nueva_linea
 
         ; cerrar archivo
@@ -4443,6 +4435,7 @@ fin_copiar_t_a_v:
     mov ah, 3e
     int 21
 
+    call print_nueva_linea
         ; print
     mov dx, offset str_titulo_venta_item_maximo
     mov ah, 09
@@ -4493,7 +4486,7 @@ print_monto_venta proc
     mov ax, [num_precio_prod]
     mov bx, [num_unidades_prod_venta_temporal]
     mul bx
-    mov [total_monto_venta], ax
+    mov [total_monto_venta], ax ; precio producto * cantidad unidades ingresada por el usuario
 
         ; imprimimos palabra monto
     mov dx, offset str_titulo_total_monto
@@ -4514,6 +4507,40 @@ print_monto_venta proc
 
     ret
 print_monto_venta endp
+
+print_monto_venta_acumulado proc
+    ; num_precio_prod -> precio del producto encontrado
+    ; num_unidades_prod_venta_temporal -> ingresado por el usuario
+
+        ; calculamos monto de venta
+    mov ax, [num_precio_prod]
+    mov bx, [num_unidades_prod_venta_temporal]
+    mul bx
+    mov [total_monto_venta], ax ; precio producto * cantidad unidades ingresada por el usuario
+
+    mov dx, [total_monto_venta_mostrar_en_pantalla]
+    add dx, [total_monto_venta]
+    mov [total_monto_venta_mostrar_en_pantalla], dx ; total actual + (precio producto * cantidad unidades ingresada por el usuario)
+
+        ; imprimimos palabra monto
+    mov dx, offset str_titulo_total_monto_acumulado
+    mov ah, 09
+    int 21
+
+        ; convertimos total monto a cadena
+    mov bx, [total_monto_venta_mostrar_en_pantalla]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+
+        ; print numero
+    mov bx, 01
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    ret
+print_monto_venta_acumulado endp
 
 memset proc
     ;; ENTRADA
