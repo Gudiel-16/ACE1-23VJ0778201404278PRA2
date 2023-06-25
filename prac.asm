@@ -216,7 +216,7 @@ str_titulo_venta_item_maximo db    "-VENTA EXITOSA-",0a,"$"
 str_fin_venta db    "fin"
 num_unidades_prod_siempre_vacio      dw  0000
 num_fecha_junta_siempre_vacio  db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
-num_unidades_prod_venta_temporal_siempre_vacio dw 0000
+estruct_prod_codigo_temporal_siempre_vacio    db  05 dup(0)
 total_monto_venta_siempre_vacio dw 0000
 
 
@@ -4357,7 +4357,7 @@ generar_y_guardar_item:
     ; cmp [count_items_ventas], 02 ; 2d
     je finalizar_venta
 
-    jmp solicitar_codigo_venta ; pa' mientras
+    jmp solicitar_codigo_venta
 
 finalizar_venta:
 
@@ -4425,6 +4425,9 @@ copiar_datos_temp_a_ventas:
     jmp copiar_datos_temp_a_ventas
 
 fin_copiar_t_a_v:
+
+    call rellenar_a_dies_items
+
     ; cerrar archivo
     mov bx, [handle_ventas_temporal]
     mov ah, 3e
@@ -4443,6 +4446,54 @@ fin_copiar_t_a_v:
     call print_nueva_linea
 
     jmp menu_principal
+
+rellenar_a_dies_items proc
+
+    cmp [count_items_ventas], 0a ; 10d
+    jb ciclo_rellenar ; si el contador es < 10
+    jmp fin_relleno
+
+    calc_vueltas:
+        inc count_items_ventas
+        cmp [count_items_ventas], 0a ; 10d
+        je fin_relleno
+        jmp ciclo_rellenar
+    
+    ciclo_rellenar:
+            ;; vamos al final del archivo
+        mov bx, [handle_ventas]
+        mov cx, 00
+        mov dx, 00
+        mov al, 02
+        mov ah, 42
+        int 21
+
+            ;; escribimos en el archivo
+        mov cx, 12 ; 18d
+        mov dx, offset num_fecha_junta_siempre_vacio
+        mov ah, 40
+        int 21
+
+        mov cx, 0004
+        mov dx, offset estruct_prod_codigo_temporal_siempre_vacio
+        mov ah, 40
+        int 21
+
+        mov cx, 0004
+        mov dx, offset num_unidades_prod_siempre_vacio
+        mov ah, 40
+        int 21
+
+        mov cx, 0004
+        mov dx, offset total_monto_venta_siempre_vacio
+        mov ah, 40
+        int 21
+        jmp calc_vueltas
+
+    fin_relleno:
+        ret
+
+rellenar_a_dies_items endp
 
 guardar_datos_en_ventas proc
         ;; vamos al final del archivo
@@ -4476,7 +4527,6 @@ guardar_datos_en_ventas proc
 
     ret
 guardar_datos_en_ventas endp
-
 
 print_monto_venta proc
     ; num_precio_prod -> precio del producto encontrado
