@@ -57,10 +57,19 @@ str_menu_reporte_exis  db   "(4) Sin existencias",0a,"$"
     ;; ESTRUCTURA PRODUCTOS
 estruct_prod_codigo    db 05 dup(0)
 estruct_prod_descrip   db 21 dup(0) ; 33d
+estruct_prod_codigo_si_existe    db 05 dup(0)
+estruct_prod_descrip_si_existe   db 21 dup(0) ; 33d
 estruct_prod_precio    db 05 dup (0)
 estruct_prod_unidads   db 05 dup (0)
 num_precio_prod        dw  0000
+fecha_probb0 db 13 dup (0) ; para no sut abajo
+num_precio_prod_si_existe        dw  0000
+fecha_probb1 db 13 dup (0) ; para no sut abajo
 num_unidades_prod      dw  0000
+fecha_probb2 db 13 dup (0) ; para no sut abajo
+num_unidades_prod_si_existe      dw  0000
+fecha_probb3 db 13 dup (0) ; para no sut abajo
+
 ceros_relleno_para_eliminar     db 2c dup(0) ; 44d -> 4 + 32 + 4 + 4
 count_mostrar_prod_consola  dw  00
     ;; REPORTE HTML
@@ -97,6 +106,8 @@ str_titulo_prod_eliminar db    "-ELIMINAR PRODUCTO-",0a,"$"
 str_titulo_prod_eliminado db    "-PRODUCTO ELIMINADO-",0a,"$"
 str_titulo_prod_no_se_encontro db    "-NO SE ENCONTRO PRODUCTO-",0a,"$"
 str_titulo_prod_que_desea_hacer db    "Enter para continuar... q para salir...",0a,"$"
+str_titulo_prod_existente db    "-PRODUCTO EXISTENTE-",0a,"$"
+str_titulo_prod_guardado db    "-PRODUCTO GUARDADO-",0a,"$"
 str_pedir_codigo    db    "Codigo: ","$"
 str_pedir_nombre    db    "Nombre: ","$"
 str_pedir_precio    db    "Precio: ","$"
@@ -106,8 +117,9 @@ str_pedir_unidad    db    "Unidades: ","$"
 estruct_prod_codigo_temporal    db  05 dup(0)
 estruct_prod_unidades_temporal    db  05 dup(0)
 num_unidades_prod_venta_temporal      dw  0000
+fecha_probb4 db 13 dup (0) ; para no sut abajo
 puntero_buscar_producto_cod     dw  0000
-
+fecha_probb5 db 13 dup (0) ; para no sut abajo
 ; Reporte abc
 count_ceros     dw 00
 str_count_ceros    db "0"
@@ -793,6 +805,11 @@ pedir_codigo_prod:
     
     call copiar_codigo_producto
 
+        ; verificar si ya existe el producto
+    call verificar_si_ya_existe_producto
+    cmp dl, 0ff
+    je pedir_codigo_prod
+
     jmp pedir_nombre_producto
 
     ; call print_nueva_linea
@@ -837,6 +854,221 @@ validar_codigo_prod proc
         ret
     
 validar_codigo_prod endp
+
+verificar_si_ya_existe_producto proc
+
+    abrir_archivo_prod:
+            ;; abrimos archivo
+        mov al, 02
+        mov ah, 3d
+        mov dx, offset str_nombre_arch_prod
+        int 21
+        jc no_existe_archivo ; no existe
+        mov [handle_productos], ax
+        jmp busar_codigo_prod
+
+    no_existe_archivo:
+        mov dl, 00 ; no existe prod
+        ret
+
+    busar_codigo_prod:
+           ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0004 ; cantidad avanzar
+        mov dx, offset estruct_prod_codigo_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0020 ; 32d
+        mov dx, offset estruct_prod_descrip_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0004
+        mov dx, offset num_precio_prod_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0004
+        mov dx, offset num_unidades_prod_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; si se leyeron 0 bytes, se termino el archivo
+        cmp ax, 0000
+        je no_existe_codigo_prod
+
+            ;; valido si es producto valido
+        mov al, 00
+        cmp [estruct_prod_codigo_si_existe], al
+        je busar_codigo_prod
+
+            ;; verificar codigo
+        mov si, offset estruct_prod_codigo_si_existe
+        mov di, offset estruct_prod_codigo
+        mov cx, 0004
+        call comparar_cadenas
+        cmp dl, 0ff
+        je ya_existe_producto
+
+        jmp busar_codigo_prod
+
+    ya_existe_producto:
+            ;; cerrar archivo
+        mov bx, [handle_productos]
+        mov ah, 3e
+        int 21
+
+            ;; imprimo que ya existe
+        mov dx, offset str_titulo_prod_existente
+        mov ah, 09
+        int 21
+        call print_nueva_linea
+
+        mov dl, 0ff ; ya existe prod
+
+        ret
+
+    no_existe_codigo_prod:
+            ;; cerrar archivo
+        mov bx, [handle_productos]
+        mov ah, 3e
+        int 21
+
+        mov dl, 00 ; no existe prod
+
+        ret
+
+verificar_si_ya_existe_producto endp
+
+buscar_posicion_para_guardar_producto proc
+
+    abrir_archivo_produc:
+            ; limpiar o reiniciar puntero
+        mov dx, 0000
+        mov [puntero_buscar_producto_cod], dx
+        call print_nueva_linea
+            ;; abrimos archivo
+        mov al, 02
+        mov ah, 3d
+        mov dx, offset str_nombre_arch_prod
+        int 21
+        jc no_existe_archivo_produc ; no existe
+        mov [handle_productos], ax
+        jmp buscar_cod_prod
+
+    no_existe_archivo_produc:
+        mov dl, 00 ; guardar al final del archivo
+        ret
+
+    buscar_cod_prod:
+           ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0004 ; cantidad avanzar
+        mov dx, offset estruct_prod_codigo_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0020 ; 32d
+        mov dx, offset estruct_prod_descrip_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0004
+        mov dx, offset num_precio_prod_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; avanzar puntero
+        mov bx, [handle_productos]
+        mov cx, 0004
+        mov dx, offset num_unidades_prod_si_existe
+        mov ah, 3f
+        int 21
+
+            ;; si se leyeron 0 bytes, se termino el archivo
+        cmp ax, 0000
+        je guardar_al_final_del_archivo
+
+                ;;
+        mov dx, [puntero_buscar_producto_cod]
+        add dx, 2c ; 44d estructuras -> 4 + 32 + 4 + 4 
+        mov [puntero_buscar_producto_cod], dx
+
+            ;; valido si es producto valido
+        mov al, 00
+        cmp [estruct_prod_codigo_si_existe], al
+        je guardar_en_posicion_vacia
+
+        jmp buscar_cod_prod
+
+    guardar_en_posicion_vacia:
+            ;; posicionar puntero a donde guardar
+        mov dx, [puntero_buscar_producto_cod]
+        sub dx, 2c ; 44d ; resta
+        mov cx, 0000
+        mov bx, [handle_productos]
+        mov al, 00
+        mov ah, 42
+        int 21
+
+            ;; escribimos en el archivo
+        mov cx, 0004
+        mov dx, offset estruct_prod_codigo
+        mov ah, 40
+        int 21
+
+        mov cx, 20 ;; 32d
+        mov dx, offset estruct_prod_descrip
+        mov ah, 40
+        int 21
+
+        mov cx, 0004
+        mov dx, offset num_precio_prod
+        mov ah, 40
+        int 21
+
+        mov cx, 0004
+        mov dx, offset num_unidades_prod
+        mov ah, 40
+        int 21
+
+            ;; cerrar archivo
+        mov bx, [handle_productos]
+        mov ah, 3e
+        int 21
+
+            ;; print
+        mov dx, offset str_titulo_prod_guardado
+        mov ah, 09
+        int 21
+        call print_nueva_linea
+
+        mov dl, 0ff ; ya guardado en posicion vacia
+
+        ret
+
+    guardar_al_final_del_archivo:
+            ;; cerrar archivo
+        mov bx, [handle_productos]
+        mov ah, 3e
+        int 21
+
+        mov dl, 00 ; guardar al final del archivo
+
+        ret
+
+buscar_posicion_para_guardar_producto endp
 
 copiar_codigo_producto proc
     codigo_aceptado:
@@ -1112,7 +1344,15 @@ pedir_unidades_producto:
     mov cx, 0005
     call memset
 
+        ;; guardamos en posicion vacia si la hay
+    call buscar_posicion_para_guardar_producto
+    cmp dl, 0ff
+    je se_guardo_en_pos_vacia
+
     jmp existencia_archivo_producto ; empezar a guardar producto
+
+se_guardo_en_pos_vacia:
+    jmp menu_principal
 
 copiar_unidades_producto proc
     unidad_aceptada:
@@ -1217,6 +1457,13 @@ guardar_producto_en_archivo:
         ;; cerrar archivo
     mov ah, 3e
     int 21
+
+        ;; print
+    mov dx, offset str_titulo_prod_guardado
+    mov ah, 09
+    int 21
+    call print_nueva_linea
+
     jmp menu_principal    
 
 
