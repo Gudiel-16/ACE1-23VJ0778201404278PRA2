@@ -232,6 +232,7 @@ fecha_junta_monto_menor_actual_reporte_venta db 13 dup (0) ; 24/06/2023,,,01:43 
 str_venta_titulo_mayor_monto db "VENTA CON MAYOR MONTO:",0a ; 23d
 
 str_venta_titulo_menor_monto db "VENTA CON MENOR MONTO:",0a ; 23d
+str_venta_titulo_ultimas_ventas db "ULTIMAS VENTAS:",0a ; 16d
 
 str_venta_fecha db "Fecha:",0a ; 7d
 str_venta_monto db "Monto:",0a ; 7d
@@ -242,6 +243,23 @@ str_salta_linea  db " ",0a ; 2d
 fecha_junta_rep_ven     db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
 total_monto_a_guardar_en_ventasbin dw 0000
 
+fecha_prob1 db 13 dup (0) ; para no sut abajo
+
+;; 5 ultimas ventas
+fecha_venta_uno db 13 dup (0)
+total_monto_venta_uno dw 0000 
+fecha_prob2 db 13 dup (0) ; para no sut abajo
+fecha_venta_dos db 13 dup (0)
+total_monto_venta_dos dw 0000
+fecha_prob3 db 13 dup (0) ; para no sut abajo
+fecha_venta_tres db 13 dup (0) 
+total_monto_venta_tres dw 0000
+fecha_prob4 db 13 dup (0) ; para no sut abajo
+fecha_venta_cuatro db 13 dup (0) 
+total_monto_venta_cuatro dw 0000
+fecha_prob5 db 13 dup (0) ; para no sut abajo
+fecha_venta_cinco db 13 dup (0) 
+total_monto_venta_cinco dw 0000 
 
 ;-------
 
@@ -4840,6 +4858,7 @@ comparar_y_actualizar_venta_mayor_y_menor:
     call sumar_montos_reporte_venta
 
         ; actualizamos
+    call ultimas_cinco_ventas
     call si_venta_es_mayor_que_la_actual
     call si_venta_es_menor_que_la_actual
 
@@ -4926,6 +4945,8 @@ fin_generar_reporte_venta:
     ; mov bx, [handle_ventas]
     ; mov ah, 3e
     ; int 21
+
+    call escribir_ultimas_cinco_ventas
 
     call escribir_separador_reporte_venta ; ===================    
         
@@ -5036,6 +5057,282 @@ sumar_montos_reporte_venta proc
 
 sumar_montos_reporte_venta endp
 
+escribir_ultimas_cinco_ventas proc
+
+    call escribir_separador_reporte_venta ; ===================    
+        
+    mov bx, [handle_reporte_venta]
+    mov cx, 10 ; 16d
+    mov dx, offset str_venta_titulo_ultimas_ventas
+    mov ah, 40
+    int 21
+
+    pos_1:
+        mov al, 00
+        cmp [fecha_venta_uno], al
+        je pos_2
+
+        call escribir_separador_entre_ventas ; ------------------
+        call escribir_palabra_fecha_reporte_venta ; Fecha:
+
+        ; escribimos fecha
+        mov bx, [handle_reporte_venta]
+        mov cx, 12 ; 18d
+        mov dx, offset fecha_venta_uno
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+        call escribir_palabra_monto_reporte_venta ; Monto:
+
+            ; escribimos valor
+        mov bx, [total_monto_venta_uno]
+        mov [aux_convert], bx
+        call convertir_todos_ceros_o_normal_general
+        
+        mov bx, [handle_reporte_venta]
+        mov cx, 0005
+        mov dx, offset numero_ya_en_cadena
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+    pos_2:
+        mov al, 00
+        cmp [fecha_venta_dos], al
+        je pos_3
+
+        call escribir_separador_entre_ventas ; ------------------
+        call escribir_palabra_fecha_reporte_venta ; Fecha:
+
+        ; escribimos fecha
+        mov bx, [handle_reporte_venta]
+        mov cx, 12 ; 18d
+        mov dx, offset fecha_venta_dos
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+        call escribir_palabra_monto_reporte_venta ; Monto:
+
+            ; escribimos valor
+        mov bx, [total_monto_venta_dos]
+        mov [aux_convert], bx
+        call convertir_todos_ceros_o_normal_general
+        
+        mov bx, [handle_reporte_venta]
+        mov cx, 0005
+        mov dx, offset numero_ya_en_cadena
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+    pos_3:
+        mov al, 00
+        cmp [fecha_venta_tres], al
+        je pos_4
+
+        call escribir_separador_entre_ventas ; ------------------
+        call escribir_palabra_fecha_reporte_venta ; Fecha:
+
+        ; escribimos fecha
+        mov bx, [handle_reporte_venta]
+        mov cx, 12 ; 18d
+        mov dx, offset fecha_venta_tres
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+        call escribir_palabra_monto_reporte_venta ; Monto:
+
+            ; escribimos valor
+        mov bx, [total_monto_venta_tres]
+        mov [aux_convert], bx
+        call convertir_todos_ceros_o_normal_general
+        
+        mov bx, [handle_reporte_venta]
+        mov cx, 0005
+        mov dx, offset numero_ya_en_cadena
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+    pos_4:
+        mov al, 00
+        cmp [fecha_venta_cuatro], al
+        je pos_5
+
+        call escribir_separador_entre_ventas ; ------------------
+        call escribir_palabra_fecha_reporte_venta ; Fecha:
+
+        ; escribimos fecha
+        mov bx, [handle_reporte_venta]
+        mov cx, 12 ; 18d
+        mov dx, offset fecha_venta_cuatro
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+        call escribir_palabra_monto_reporte_venta ; Monto:
+
+            ; escribimos valor
+        mov bx, [total_monto_venta_cuatro]
+        mov [aux_convert], bx
+        call convertir_todos_ceros_o_normal_general
+        
+        mov bx, [handle_reporte_venta]
+        mov cx, 0005
+        mov dx, offset numero_ya_en_cadena
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+    pos_5:
+        mov al, 00
+        cmp [fecha_venta_cinco], al
+        je salir_eucv
+
+        call escribir_separador_entre_ventas ; ------------------
+        call escribir_palabra_fecha_reporte_venta ; Fecha:
+
+        ; escribimos fecha
+        mov bx, [handle_reporte_venta]
+        mov cx, 12 ; 18d
+        mov dx, offset fecha_venta_cinco
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+        call escribir_palabra_monto_reporte_venta ; Monto:
+
+            ; escribimos valor
+        mov bx, [total_monto_venta_cinco]
+        mov [aux_convert], bx
+        call convertir_todos_ceros_o_normal_general
+        
+        mov bx, [handle_reporte_venta]
+        mov cx, 0005
+        mov dx, offset numero_ya_en_cadena
+        mov ah, 40
+        int 21
+
+        call escribir_salto_linea
+
+        jmp salir_eucv
+
+    salir_eucv:
+        ret
+
+escribir_ultimas_cinco_ventas endp
+
+ultimas_cinco_ventas proc
+
+    ;; Las ultimas cinco ventas estaran |1|2|3|4|5|
+
+    posicion_2:
+        mov al, 00
+        cmp [fecha_venta_dos], al
+        je posicion_3
+        jmp copiar_en_1
+
+    copiar_en_1: ; aqui guardara lo que este en 2
+        mov total_monto_venta_uno, 0000 ; ponemos en 0
+            ; copiamos nuevo total
+        mov ax, [total_monto_venta_uno]
+        add ax, [total_monto_venta_dos]
+        mov [total_monto_venta_uno], ax
+            ; copiamos fecha
+        mov si, offset fecha_venta_uno
+        mov di, offset fecha_venta_dos
+        mov cx, 12 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp copiar_en_2
+        
+    posicion_3:
+        mov al, 00
+        cmp [fecha_venta_tres], al
+        je posicion_4
+        jmp copiar_en_2
+
+    copiar_en_2: ; aqui guardara lo que este en 3
+        mov total_monto_venta_dos, 0000 ; ponemos en 0
+            ; copiamos nuevo total
+        mov ax, [total_monto_venta_dos]
+        add ax, [total_monto_venta_tres]
+        mov [total_monto_venta_dos], ax
+            ; copiamos fecha
+        mov si, offset fecha_venta_dos
+        mov di, offset fecha_venta_tres
+        mov cx, 12 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp copiar_en_3
+
+    posicion_4:
+        mov al, 00
+        cmp [fecha_venta_cuatro], al
+        je posicion_5
+        jmp copiar_en_3
+
+    copiar_en_3: ; aqui guardara lo que este en 4
+        mov total_monto_venta_tres, 0000 ; ponemos en 0
+            ; copiamos nuevo total
+        mov ax, [total_monto_venta_tres]
+        add ax, [total_monto_venta_cuatro]
+        mov [total_monto_venta_tres], ax
+            ; copiamos fecha
+        mov si, offset fecha_venta_tres
+        mov di, offset fecha_venta_cuatro
+        mov cx, 12 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp copiar_en_4
+
+    posicion_5:
+        mov al, 00
+        cmp [fecha_venta_cinco], al
+        je copiar_en_5
+        jmp copiar_en_4
+
+    copiar_en_4: ; aqui guardara lo que este en 5
+        mov total_monto_venta_cuatro, 0000 ; ponemos en 0
+            ; copiamos nuevo total
+        mov ax, [total_monto_venta_cuatro]
+        add ax, [total_monto_venta_cinco]
+        mov [total_monto_venta_cuatro], ax
+            ; copiamos fecha
+        mov si, offset fecha_venta_cuatro
+        mov di, offset fecha_venta_cinco
+        mov cx, 12 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp copiar_en_5
+    
+    copiar_en_5: ; aqui guardara lo ultima venta
+        ; limpiamos
+        mov total_monto_venta_cinco, 0000 ; ponemos en 0
+            ; copiamos nuevo total
+        mov ax, [total_monto_venta_cinco]
+        add ax, [suma_total_monto_por_venta]
+        mov [total_monto_venta_cinco], ax
+            ; copiamos fecha
+        mov si, offset fecha_venta_cinco
+        mov di, offset fecha_junta
+        mov cx, 12 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp fin_copiar_uc
+        
+    fin_copiar_uc:
+        ret
+
+ultimas_cinco_ventas endp
+
 copiar_fecha_reporte_venta proc
     ;; ENTRADA
         ;; SI -> Offset de la cadena a la que quiero copiar
@@ -5060,6 +5357,16 @@ escribir_separador_reporte_venta proc
     int 21
     ret
 escribir_separador_reporte_venta endp
+
+escribir_separador_entre_ventas proc
+        ;; escribimos en el archivo
+    mov bx, [handle_reporte_venta]
+    mov cx, 1e ; 30d
+    mov dx, offset str_separador_entre_ventas
+    mov ah, 40
+    int 21
+    ret
+escribir_separador_entre_ventas endp
 
 escribir_palabra_fecha_reporte_venta proc
     mov bx, [handle_reporte_venta]
