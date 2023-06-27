@@ -78,9 +78,11 @@ str_html_fin     db "</table></body></html>"
 str_nombre_reporte_catalogo db "CATALG.HTM",00
 str_nombre_reporte_sin_existencias db "FALTA.HTM",00
 str_nombre_reporte_abc db "ABC.HTM",00
+str_nombre_reporte_ventas db "REP.TXT",00
 handle_reporte_catalogo dw  0000
 handle_reporte_sin_existencia dw  0000
 handle_reporte_abc dw  0000
+handle_reporte_venta dw  0000
 
 numero_ya_en_cadena db 05 dup (30)
 
@@ -180,7 +182,6 @@ str_count_y    db "Y"
 count_z         dw 00
 str_count_z    db "Z"
 
-prueba_descrip    db "aja";
 ;; anio, mes, dia
 anio_actual dw 0000
 mes_actual db ?
@@ -204,8 +205,14 @@ str_nombre_arch_ventas_temporal   db   "VTTT.BIN",00
 handle_ventas       dw   0000
 handle_ventas_temporal       dw   0000
 count_items_ventas   dw 00
+; count_total_ventas   dw 00 ; sumara cada 10 items leidos en el reporte
 total_monto_venta dw 0000 ; el que se guarda en el archivo
+
+prueba_print   db "ajaaaaaaaaaaaaaaaaaaa","$"; ********************* sin no act rep vent 
+suma_total_monto_por_venta dw 0000 ; para el reporte
+prueba_print_espacio db "  ","$"
 total_monto_venta_mostrar_en_pantalla dw 0000 ; el que hay que ir mostrando en pantalla
+total_monto_venta2 dw 0000 ; para guardar en archivo ventas
 str_titulo_prod_sin_existencias db    "-PRODUCTO SIN EXISTENCIAS-",0a,"$"
 str_titulo_realizar_venta db    "-REALIZAR VENTA-",0a,"$"
 str_titulo_total_monto db    "-TOTAL MONTO ITEM:",0a,"$"
@@ -218,12 +225,78 @@ num_unidades_prod_siempre_vacio      dw  0000
 num_fecha_junta_siempre_vacio  db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
 estruct_prod_codigo_temporal_siempre_vacio    db  05 dup(0)
 total_monto_venta_siempre_vacio dw 0000
+monto_mayor_actual_reporte_venta dw 0000
+fecha_junta_monto_mayor_actual_reporte_venta db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
+monto_menor_actual_reporte_venta dw 0000
+fecha_junta_monto_menor_actual_reporte_venta db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
+str_venta_titulo_mayor_monto db "VENTA CON MAYOR MONTO:",0a ; 23d
 
+str_venta_titulo_menor_monto db "VENTA CON MENOR MONTO:",0a ; 23d
+
+str_venta_fecha db "Fecha:",0a ; 7d
+str_venta_monto db "Monto:",0a ; 7d
+str_separador_reporte_venta db "=============================",0a ; 30d
+str_separador_entre_ventas  db "-----------------------------",0a ; 30d
+str_salta_linea  db " ",0a ; 2d
+
+fecha_junta_rep_ven     db 13 dup (0) ; 24/06/2023,,,01:43 ; 19d
+total_monto_a_guardar_en_ventasbin dw 0000
+
+
+;-------
 
 .CODE
 .STARTUP
 ;; CODIGO
 inicio:
+    ; inc total_monto_venta
+    ; ; mov bx, [total_monto_venta]
+    ; ; mov [aux_convert], bx
+    ; ; call convertir_todos_ceros_o_normal_general
+
+    ; ; ;; el valor esta en, numero_ya_en_cadena
+    ; ; ;; convertimos
+    ; ; ; mov [total_monto_venta], 0000
+    ; ; mov di, offset numero_ya_en_cadena
+    ; ; call convertir_cadena_a_numero
+    ; ; mov [total_monto_venta], ax
+
+    ; ;     ; print numero
+    ; ; mov bx, 01
+    ; ; mov cx, 0005
+    ; ; mov dx, offset numero_ya_en_cadena
+    ; ; mov ah, 40
+    ; ; int 21
+    ; mov bx, 0000
+    ; mov [total_monto_venta], 0000
+
+    ; ;crear archivo
+    ; mov ah, 3c
+    ; mov cx, 0000
+    ; mov dx, offset str_nombre_arch_ventas_temporal
+    ; int 21
+    ; mov [handle_ventas_temporal], ax
+
+    ; ; fin archivo
+    ; mov bx, [handle_ventas_temporal]
+    ; mov cx, 00
+    ; mov dx, 00
+    ; mov al, 02
+    ; mov ah, 42
+    ; int 21
+
+    ; mov cx, 0004
+    ; mov dx, offset total_monto_prueba
+    ; mov ah, 40
+    ; int 21
+
+    ; ; cerrar archivo
+    ; mov bx, [handle_ventas_temporal]
+    ; mov ah, 3e
+    ; int 21
+
+    ; jmp fin
+
 
     ; call obtener_fecha_junta
     ; call imprimir_estructura
@@ -646,7 +719,8 @@ menu_reportes:
     cmp al, 32 ; 2d
     je generar_reporte_abc 
     cmp al, 33 ; 3d
-    je fin 
+    je generar_reporte_ventas 
+    ; je fin 
     cmp al, 34 ; 4d
     je generar_reporte_sin_existencias 
     jmp menu_principal
@@ -4304,6 +4378,9 @@ generar_y_guardar_item:
     mov ah, 40
     int 21
 
+        ; reiniciamos puntero
+    mov puntero_buscar_producto_cod, 0000
+
         ; imprimimos
     mov dx, offset str_titulo_venta_item_guardado
     mov ah, 09
@@ -4318,6 +4395,26 @@ generar_y_guardar_item:
     mov bx, [handle_productos]
     mov ah, 3e
     int 21
+
+    ; calculamos monto de venta
+    ; mov total_monto_venta, 0000
+    mov ax, [num_precio_prod]
+    mov bx, [num_unidades_prod_venta_temporal]
+    mul bx
+    mov [total_monto_a_guardar_en_ventasbin], ax
+
+    ; mov bx, [total_monto_a_guardar_en_ventasbin]
+    ; mov [aux_convert], bx
+    ; call convertir_todos_ceros_o_normal_general
+
+    ; call print_nueva_linea
+    ; mov bx, 01
+    ; mov cx, 0005
+    ; mov dx, offset numero_ya_en_cadena
+    ; mov ah, 40
+    ; int 21
+    ; call print_nueva_linea
+
 
         ; guarda en -> fecha_junta
     call obtener_fecha_junta ; dia, mes, anio, hora, minutos
@@ -4348,7 +4445,7 @@ generar_y_guardar_item:
     int 21
 
     mov cx, 0004
-    mov dx, offset total_monto_venta
+    mov dx, offset total_monto_a_guardar_en_ventasbin
     mov ah, 40
     int 21
 
@@ -4592,6 +4689,406 @@ print_monto_venta_acumulado proc
     ret
 print_monto_venta_acumulado endp
 
+generar_reporte_ventas:
+
+        ; reiniciar contador
+    mov count_items_ventas, 00
+    mov suma_total_monto_por_venta, 0000
+    mov monto_mayor_actual_reporte_venta, 0000
+    mov monto_menor_actual_reporte_venta, 0000
+
+        ;; crear archivo
+    mov ah, 3c
+    mov cx, 0000
+    mov dx, offset str_nombre_reporte_ventas
+    int 21
+    mov [handle_reporte_venta], ax
+
+    ; jmp fin_generar_reporte_venta
+
+        ; abrimos archivo ventas
+    mov al, 02
+    mov ah, 3d
+    mov dx, offset str_nombre_arch_ventas
+    int 21
+    jc error_generar_rep_venta; si no existe archivo
+    mov [handle_ventas], ax
+
+    jmp ciclo_generar_reporte_venta
+    
+
+error_generar_rep_venta:
+        ; cerrar archivo reporte ventas
+    mov bx, [handle_reporte_venta]
+    mov ah, 3e
+    int 21
+    jmp menu_principal
+
+ciclo_generar_reporte_venta:
+
+        ;*********************
+    ; mov bx, [suma_total_monto_por_venta]
+    ; mov [aux_convert], bx
+    ; call convertir_todos_ceros_o_normal_general
+
+    ;     ; print numero
+    ; mov bx, 01
+    ; mov cx, 0005
+    ; mov dx, offset numero_ya_en_cadena
+    ; mov ah, 40
+    ; int 21
+        ;***********************
+
+
+        ;; avanzar puntero
+    mov bx, [handle_ventas]
+    mov cx, 12 ; 18d
+    mov dx, offset fecha_junta_rep_ven
+    mov ah, 3f
+    int 21
+
+    ;; avanzar puntero
+    mov bx, [handle_ventas]
+    mov cx, 0004 ; cantidad avanzar
+    mov dx, offset estruct_prod_codigo_temporal
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_ventas]
+    mov cx, 0004
+    mov dx, offset num_unidades_prod_venta_temporal
+    mov ah, 3f
+    int 21
+
+        ;; avanzar puntero
+    mov bx, [handle_ventas]
+    mov cx, 0004
+    mov dx, offset total_monto_a_guardar_en_ventasbin
+    mov ah, 3f
+    int 21
+
+        ;; si se leyeron 0 bytes, se termino el archivo
+    cmp ax, 0000
+    je fin_generar_reporte_venta
+
+        ;; valido si es item valido
+    mov al, 00
+    cmp [fecha_junta_rep_ven], al
+    je aumentar_count_item_ventas
+
+        ;; sumamos monto
+    ;*********************
+    ; mov ax, [suma_total_monto_por_venta]
+    ; add ax, 5h
+    ; mov [suma_total_monto_por_venta], ax
+    ; inc suma_total_monto_por_venta
+
+    ; SIN OBTIENE LOS VALORES CORRECTOS
+    ; mov bx, [total_monto_a_guardar_en_ventasbin]
+    ; mov [aux_convert], bx
+    ; call convertir_todos_ceros_o_normal_general
+
+    ;     ; print numero
+    ; mov bx, 01
+    ; mov cx, 0005
+    ; mov dx, offset numero_ya_en_cadena
+    ; mov ah, 40
+    ; int 21
+
+    ; mov dx, offset prueba_print_espacio
+    ; mov ah, 09
+    ; int 21
+    ;****************************
+
+    
+    mov si, offset fecha_junta
+    mov di, offset fecha_junta_rep_ven
+    mov cx, 12 ; 18d
+    call copiar_fecha_reporte_venta
+
+    
+
+    inc count_items_ventas  
+
+        ;; validamos si llegamos a los 10 items que tiene una venta
+    cmp [count_items_ventas], 0a ; 10d
+    je comparar_y_actualizar_venta_mayor_y_menor  
+
+    call sumar_montos_reporte_venta
+
+    jmp ciclo_generar_reporte_venta
+
+aumentar_count_item_ventas:
+    ; ;*************
+    ; call print_nueva_linea
+    ; mov dx, offset prueba_print
+    ; mov ah, 09
+    ; int 21 
+    ; call print_nueva_linea
+    ; ;*************
+    inc count_items_ventas
+
+    cmp [count_items_ventas], 0a ; 10d
+    je comparar_y_actualizar_venta_mayor_y_menor  
+    jmp ciclo_generar_reporte_venta
+
+comparar_y_actualizar_venta_mayor_y_menor:
+
+    ; call imprimir_estructura
+
+    call sumar_montos_reporte_venta
+
+        ; actualizamos
+    call si_venta_es_mayor_que_la_actual
+    call si_venta_es_menor_que_la_actual
+
+        ; reiniciamos para la proxima venta
+    mov bx, 0000
+    mov [suma_total_monto_por_venta], bx
+    mov count_items_ventas, 00
+
+    jmp ciclo_generar_reporte_venta
+
+
+si_venta_es_mayor_que_la_actual proc
+
+    mov dx, [suma_total_monto_por_venta]
+    cmp dx, [monto_mayor_actual_reporte_venta]
+    ja actualizar_nuevo_monto_mayor; izq > der (suma venta actual > monto mayor actual)
+    jmp salir_svemaqla
+
+    actualizar_nuevo_monto_mayor:
+            ; limpiamos
+        mov monto_mayor_actual_reporte_venta, 0000
+            ; copiamos nuevo total
+        mov dx, [suma_total_monto_por_venta]
+        mov [monto_mayor_actual_reporte_venta], dx
+            ; copiamos fecha
+        mov si, offset fecha_junta_monto_mayor_actual_reporte_venta
+        mov di, offset fecha_junta
+        mov cx, 12 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp salir_svemaqla
+
+    salir_svemaqla:
+        ret
+
+si_venta_es_mayor_que_la_actual endp
+
+si_venta_es_menor_que_la_actual proc
+
+        ; validamos si es 0, ya que al inicio es asi, y guardar el primer valor por primera vez
+    mov dx, [monto_menor_actual_reporte_venta]
+    cmp dx, 0000
+    je guardar_primera_vez
+
+    mov dx, [suma_total_monto_por_venta]
+    cmp dx, [monto_menor_actual_reporte_venta]
+    jb actualizar_nuevo_monto_menor ; izq < der (suma venta actual < monto menor actual)
+    jmp salir_svemeqla
+
+    actualizar_nuevo_monto_menor:
+            ; limpiamos
+        mov monto_menor_actual_reporte_venta, 0000
+            ; copiamos nuevo total
+        mov dx, [suma_total_monto_por_venta]
+        mov [monto_menor_actual_reporte_venta], dx
+            ; copiamos fecha
+        mov si, offset fecha_junta_monto_menor_actual_reporte_venta
+        mov di, offset fecha_junta
+        mov cx, 12 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp salir_svemeqla
+
+    guardar_primera_vez:
+            ; copiamos total
+
+        ; mov dx, offset prueba_print
+        ; mov ah, 09
+        ; int 21
+
+        mov dx, [suma_total_monto_por_venta]
+        mov [monto_menor_actual_reporte_venta], dx
+            ; copiamos fecha
+        mov si, offset fecha_junta_monto_menor_actual_reporte_venta
+        mov di, offset fecha_junta
+        mov cx, 0012 ; 18d
+        call copiar_fecha_reporte_venta
+        jmp salir_svemeqla
+
+    salir_svemeqla:
+        ret
+si_venta_es_menor_que_la_actual endp
+
+fin_generar_reporte_venta:
+        ; cerrar archivo ventas
+    ; mov bx, [handle_ventas]
+    ; mov ah, 3e
+    ; int 21
+
+    call escribir_separador_reporte_venta ; ===================    
+        
+    mov bx, [handle_reporte_venta]
+    mov cx, 17 ; 23d
+    mov dx, offset str_venta_titulo_mayor_monto
+    mov ah, 40
+    int 21
+
+    call escribir_palabra_fecha_reporte_venta ; Fecha:
+
+        ; escribimos fecha
+    mov bx, [handle_reporte_venta]
+    mov cx, 12 ; 18d
+    mov dx, offset fecha_junta_monto_mayor_actual_reporte_venta
+    mov ah, 40
+    int 21
+
+    call escribir_salto_linea
+
+    call escribir_palabra_monto_reporte_venta ; Monto:
+
+        ; escribimos valor
+    mov bx, [monto_mayor_actual_reporte_venta]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_venta]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+    call escribir_salto_linea
+
+    call escribir_separador_reporte_venta ; ===================    
+
+    mov bx, [handle_reporte_venta]
+    mov cx, 17 ; 23d
+    mov dx, offset str_venta_titulo_menor_monto
+    mov ah, 40
+    int 21
+
+    call escribir_palabra_fecha_reporte_venta ; Fecha:
+
+        ; escribimos fecha
+    mov bx, [handle_reporte_venta]
+    mov cx, 12 ; 18d
+    mov dx, offset fecha_junta_monto_menor_actual_reporte_venta
+    mov ah, 40
+    int 21
+
+    call escribir_salto_linea
+
+    call escribir_palabra_monto_reporte_venta ; Monto:
+
+        ; escribimos valor
+    mov bx, [monto_menor_actual_reporte_venta]
+    mov [aux_convert], bx
+    call convertir_todos_ceros_o_normal_general
+    
+    mov bx, [handle_reporte_venta]
+    mov cx, 0005
+    mov dx, offset numero_ya_en_cadena
+    mov ah, 40
+    int 21
+
+        ; cerramos archivo
+    mov bx, [handle_reporte_venta]
+    mov ah, 3e
+    int 21
+
+    ; call print_nueva_linea
+    ; mov dx, offset prueba_print
+    ; mov ah, 09
+    ; int 21
+    ; call print_nueva_linea
+
+    jmp menu_principal
+
+sumar_montos_reporte_venta proc
+
+        ;; total_monto_venta, es el valor leido del item actual
+        ;; se lo sumamos a suma_total_monto_por_venta
+
+    mov ax, [suma_total_monto_por_venta]
+    add ax, [total_monto_a_guardar_en_ventasbin]
+    mov [suma_total_monto_por_venta], ax
+
+    ; *****************
+    ; mov bx, [suma_total_monto_por_venta]
+    ; mov [aux_convert], bx
+    ; call convertir_todos_ceros_o_normal_general
+
+    ;     ; print numero
+    ; mov bx, 01
+    ; mov cx, 0005
+    ; mov dx, offset numero_ya_en_cadena
+    ; mov ah, 40
+    ; int 21
+
+    ; mov dx, offset prueba_print_espacio
+    ; mov ah, 09
+    ; int 21
+    ; *****************
+
+    ret
+
+sumar_montos_reporte_venta endp
+
+copiar_fecha_reporte_venta proc
+    ;; ENTRADA
+        ;; SI -> Offset de la cadena a la que quiero copiar
+        ;; DI -> Offset de la cadena de la que quiero copiar
+        ;; CX -> cantidad bytes a copiar
+
+    copiar_fecha_rv:
+        mov al, [di]
+        mov [si], al
+        inc si
+        inc di
+        loop copiar_fecha_rv
+        ret
+copiar_fecha_reporte_venta endp
+
+escribir_separador_reporte_venta proc
+        ;; escribimos en el archivo
+    mov bx, [handle_reporte_venta]
+    mov cx, 1e ; 30d
+    mov dx, offset str_separador_reporte_venta
+    mov ah, 40
+    int 21
+    ret
+escribir_separador_reporte_venta endp
+
+escribir_palabra_fecha_reporte_venta proc
+    mov bx, [handle_reporte_venta]
+    mov cx, 07 ; 7d
+    mov dx, offset str_venta_fecha
+    mov ah, 40
+    int 21
+    ret
+escribir_palabra_fecha_reporte_venta endp
+
+escribir_palabra_monto_reporte_venta proc
+    mov bx, [handle_reporte_venta]
+    mov cx, 07 ; 7d
+    mov dx, offset str_venta_monto
+    mov ah, 40
+    int 21
+    ret
+escribir_palabra_monto_reporte_venta endp
+
+escribir_salto_linea proc
+    mov bx, [handle_reporte_venta]
+    mov cx, 02 ; 2d
+    mov dx, offset str_salta_linea
+    mov ah, 40
+    int 21
+    ret
+escribir_salto_linea endp
+
+
 memset proc
     ;; ENTRADA
     ;;  DI -> direccion de cadena
@@ -4635,7 +5132,7 @@ comparar_cadenas proc
 comparar_cadenas endp
 
 imprimir_estructura proc
-    mov DI, offset numero_ya_en_cadena ; <-- cambiar aqui
+    mov DI, offset fecha_junta ; <-- cambiar aqui
     ciclo_buscar_posicion_null:
             mov AL, [DI]
             cmp AL, 00 ; para cuando encuenra 0
@@ -4646,7 +5143,7 @@ imprimir_estructura proc
             mov AL, 24  ;; agregar dolar al final
             mov [DI], AL
             ;; imprimir normal
-            mov DX, offset numero_ya_en_cadena ; <-- cambiar aqui
+            mov DX, offset fecha_junta ; <-- cambiar aqui
             mov AH, 09
             int 21
             mov DX, offset nueva_linea
